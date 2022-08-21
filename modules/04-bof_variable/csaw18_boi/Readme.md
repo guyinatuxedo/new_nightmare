@@ -14,44 +14,15 @@ So we can see the program prints the string `Are you a big boiiiii??` with `puts
 
 We can see that the value that it is being assigned is `0xdeadbeef`:
 
-```
-        0040067e c7 45 e4        MOV        dword ptr [RBP + target],0xdeadbeef
-                 ef be ad de
-```
+![mov_ins](pics/mov_ins.png)
 
 We can also see that the value that it is being compared to is `0xcaf3baee`:
 
-```
-        004006a5 8b 45 e4        MOV        EAX,dword ptr [RBP + target]
-        004006a8 3d ee ba        CMP        EAX,0xcaf3baee
-                 f3 ca
-```
+![cmp_ins](pics/mov_ins.png)
 
 Now to see what our input can reach, we can look at the stack layout in Ghidra. To see this you can just double click on any of the variables where they are declared:
 
-```
-                             **************************************************************
-                             *                          FUNCTION                          *
-                             **************************************************************
-                             undefined8 __stdcall main(void)
-             undefined8        RAX:8          <RETURN>
-             undefined8        Stack[-0x10]:8 local_10                                XREF[2]:     00400659(W),
-                                                                                                   004006ca(R)  
-             int               Stack[-0x24]:4 target                                  XREF[2]:     0040067e(W),
-                                                                                                   004006a5(R)  
-             undefined8        Stack[-0x30]:8 local_30                                XREF[1]:     00400667(W)  
-             undefined8        Stack[-0x38]:8 input                                   XREF[2]:     0040065f(W),
-                                                                                                   0040068f(*)  
-             undefined4        Stack[-0x3c]:4 local_3c                                XREF[1]:     00400649(W)  
-             undefined8        Stack[-0x48]:8 local_48                                XREF[1]:     0040064c(W)  
-             long              HASH:5f6c2e9   stackCanary
-                             main                                            XREF[5]:     Entry Point(*),
-                                                                                          _start:0040054d(*),
-                                                                                          _start:0040054d(*), 004007b4,
-                                                                                          00400868(*)  
-        00400641 55              PUSH       RBP
-
-```
+![stack_frame](pics/stack_frame.png)
 
 Here we can see that according to Ghidra input is stored at offset `-0x38`. We can see that target is stored at offset `-0x24`. This means that there is a `0x14` byte difference between the two values. Sice we can write `0x18` bytes, that means we can fill up the `0x14` byte difference and overwrite four bytes (`0x18 - 0x14 = 4`) of `target`, and since integers are four bytes we can overwrite. Here the bug is it is letting us write `0x18` bytes worth of data to a `0x14` byte space, and `0x4` bytes of data are overflowing into the `target` variable which gives us the ability to change what it is. Taking a look at the memory layout in gdb gives us a better description. We set a breakpoint for directly after the `read` call and see what the memory looks like:
 
@@ -342,17 +313,6 @@ target.interactive()
 ```
 
 When we run it:
-```
-$    python exploit.py
-[+] Starting local process './boi': pid 9075
-[*] Switching to interactive mode
-Are you a big boiiiii??
-$ w
- 23:37:29 up  3:37,  1 user,  load average: 0.81, 0.80, 0.85
-USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
-guyinatu :0       :0               20:00   ?xdm?  22:41   0.00s /usr/lib/gdm3/gdm-x-session --run-script env GNOME_SHELL_SESSION_MODE=ubuntu gnome-session --session=ubuntu
-$ ls
-boi  exploit.py  input    Readme.md
-```
+![exploit_running](pics/exploit_running.png)
 
 Just like that, we popped a shell!
