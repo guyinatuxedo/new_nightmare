@@ -9,7 +9,7 @@ So we can see that we are dealing with a 64 bit binary with a Stack Canary and N
 
 ![main](pics/main.png)
 
-So we can see the program prints the string `Are you a big boiiiii??` with `puts`. Then it proceeds to scan in `0x18` bytes worth of data into `input`. In addition to that we can see that the `target` integer is initialized before the `read` call, then compared to a value after the `read` call. looking at the if then statement, we see if it passes, then it will give us a shell with the `run_cmd("/bin/bash");` command (so that's what we want to do in order to solve the challenge). Looking at the decompiled code shows us the constants it is assigned and compared to as signed integers, however if we look at the assembly code we can see the constants as unsigned hex integers:
+So we can see the program prints the string `Are you a big boiiiii??` with `puts`. Then it proceeds to scan in `0x18` bytes worth of data into `input`. In addition to that we can see that the `target` integer is initialized before the `read` call, then compared to a value after the `read` call. Looking at the if then statement, we see if it passes, then it will give us a shell with the `run_cmd("/bin/bash");` command (so that's what we want to do in order to solve the challenge). Looking at the decompiled code shows us the constants it is assigned and compared to as signed integers, however if we look at the assembly code we can see the constants as unsigned hex integers:
 
 
 We can see that the value that it is being assigned is `0xdeadbeef`:
@@ -24,7 +24,7 @@ Now to see what our input can reach, we can look at the stack layout in Ghidra. 
 
 ![stack_frame](pics/stack_frame.png)
 
-Here we can see that according to Ghidra input is stored at offset `-0x38`. We can see that target is stored at offset `-0x24`. This means that there is a `0x14` byte difference between the two values. Sice we can write `0x18` bytes, that means we can fill up the `0x14` byte difference and overwrite four bytes (`0x18 - 0x14 = 4`) of `target`, and since integers are four bytes we can overwrite. Here the bug is it is letting us write `0x18` bytes worth of data to a `0x14` byte space, and `0x4` bytes of data are overflowing into the `target` variable which gives us the ability to change what it is (so we should be able to set it to the value, that will control if we pass the if then check, and solve the challenge). Taking a look at the memory layout in gdb gives us a better description. We set a breakpoint for directly after the `read` call and see what the memory looks like:
+Here we can see that according to Ghidra input is stored at offset `-0x38`. We can see that target is stored at offset `-0x24`. This means that there is a `0x14` byte difference between the two values. Since we can write `0x18` bytes, that means we can fill up the `0x14` byte difference and overwrite four bytes (`0x18 - 0x14 = 4`) of `target`, and since integers are four bytes we can overwrite. Here the bug is it is letting us write `0x18` bytes worth of data to a `0x14` byte space, and `0x4` bytes of data are overflowing into the `target` variable which gives us the ability to change what it is (so we should be able to set it to the value, that will control if we pass the if then check, and solve the challenge). Taking a look at the memory layout in gdb gives us a better description. We set a breakpoint for directly after the `read` call and see what the memory looks like:
 
 ```
 nightma@re$ gdb ./boi 
