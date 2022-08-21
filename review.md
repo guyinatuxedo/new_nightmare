@@ -1,5 +1,7 @@
 ## Intro Departure
 
+default zoom in, 5 ctrl shift +
+
 #### 0.) Intro to the Project    
 
 #### 1.) Intro to Assembly     
@@ -21,7 +23,7 @@
 
 #### 4.) Buffer Overflow of Variables
 
--    Csaw18/boi
+-    Csaw18/boi (reviewed)
 -    TokyoWesterns17/just_do_it
 -    Tamu19_pwn1
 

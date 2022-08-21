@@ -146,6 +146,7 @@ gef➤  x/10g 0x7fffffffdf70
 Here we can see that our input `15935728` is `0x14` bytes away. When we give the input `00000000000000000000` + p32(`0xcaf3baee`). We need the hex address to be in least endian (least significant byte first) because that is how the elf will read in data, so we have to pack it that way in order for the binary to read it properly.
 
 To do this, I use the `gen_inp.py` script:
+
 ![gen_inp](pics/gen_inp.png)
 
 Now let's actually see the input we generated in practice:
@@ -318,6 +319,7 @@ target.interactive()
 ```
 
 When we run it:
+
 ![exploit_running](pics/exploit_running.png)
 
 Just like that, we popped a shell!
