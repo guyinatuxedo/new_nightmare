@@ -7,37 +7,7 @@ Let's take a look at the binary:
 
 So we can see that we are dealing with a 64 bit binary with a Stack Canary and Non-Executable stack (those are two binary mitigations that will be discussed later). When we run the binary, we see that we are prompted for input (which we gave it `15935728`). It then provided us with the time and the date. When we look at the main function in Ghidra we see this:
 
-```
-undefined8 main(void)
-
-{
-  long in_FS_OFFSET;
-  undefined8 input;
-  undefined8 local_30;
-  undefined4 uStack40;
-  int target;
-  long stackCanary;
- 
-  stackCanary = *(long *)(in_FS_OFFSET + 0x28);
-  input = 0;
-  local_30 = 0;
-  uStack40 = 0;
-  target = -0x21524111;
-  puts("Are you a big boiiiii??");
-  read(0,&input,0x18);
-  if (target == -0x350c4512) {
-    run_cmd("/bin/bash");
-  }
-  else {
-    run_cmd("/bin/date");
-  }
-  if (stackCanary != *(long *)(in_FS_OFFSET + 0x28)) {
-                    /* WARNING: Subroutine does not return */
-    __stack_chk_fail();
-  }
-  return 0;
-}
-```
+![main](pics/main.png)
 
 So we can see the program prints the string `Are you a big boiiiii??` with `puts`. Then it proceeds to scan in `0x18` bytes worth of data into `input`. In addition to that we can see that the `target` integer is initialized before the `read` call, then compared to a value after the `read` call. Looking at the decompiled code shows us the constants it is assigned and compared to as signed integers, however if we look at the assembly code we can see the constants as unsigned hex integers:
 
