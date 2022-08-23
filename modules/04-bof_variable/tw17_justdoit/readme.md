@@ -1,79 +1,20 @@
 # Just Do It!
 
-This was originally a pwn challenge from the TokyoWesterns 2017 ctf.
+This was done on `Ubuntu 20.04.4`, although the exact ubuntu version probably doesn't matter too much for this one. This was originally a pwn challenge from the TokyoWesterns 2017 ctf.
 
 Let's take a look at the binary:
 
-```
-$    file just_do_it-56d11d5466611ad671ad47fba3d8bc5a5140046a2a28162eab9c82f98e352afa
-just_do_it-56d11d5466611ad671ad47fba3d8bc5a5140046a2a28162eab9c82f98e352afa: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux.so.2, for GNU/Linux 2.6.32, BuildID[sha1]=cf72d1d758e59a5b9912e0e83c3af92175c6f629, not stripped
-```
+![intro_data](pics/intro_data.png)
 
-```
-$    pwn checksec just_do_it-56d11d5466611ad671ad47fba3d8bc5a5140046a2a28162eab9c82f98e352afa
-[*] '/Hackery/west/doit/just_do_it-56d11d5466611ad671ad47fba3d8bc5a5140046a2a28162eab9c82f98e352afa'
-    Arch:     i386-32-little
-    RELRO:    Partial RELRO
-    Stack:    No canary found
-    NX:       NX enabled
-    PIE:      No PIE (0x8048000)
-```
+So we can see that it is a 32 bit binary, with a non executable stack.. When we run it, we can see it is complaining about a file opening error, probably trying to open a file that isn't there. Let's look at the main function in Ghidra:
 
-So we can see that it is a 32 bit binary, with a non executable stack. Let's try to run it.
+![main](pics/main.png)
 
-```
-$    ./just_do_it-56d11d5466611ad671ad47fba3d8bc5a5140046a2a28162eab9c82f98e352afa
-file open error.
-: No such file or directory
-```
+So we can see that the file it is trying to open is `flag.txt`. When we create the file `flag.txt`, we see that we can actually run the binary:
 
-So it is complaining about a file opening error, probably trying to open a file that isn't there. Let's look at the main function in Ghidra:
+![flag_setup](pics/flag_setup.png)
 
-```
-undefined4 main(void)
-
-{
-  char local_EAX_154;
-  FILE *flagFile;
-  int cmp;
-  char vulnBuf [16];
-  FILE *flagHandle;
-  char *target;
-
-  setvbuf(stdin,(char *)0x0,2,0);
-  setvbuf(stdout,(char *)0x0,2,0);
-  setvbuf(stderr,(char *)0x0,2,0);
-  target = failed_message;
-  flagFile = fopen("flag.txt","r");
-  if (flagFile == (FILE *)0x0) {
-    perror("file open error.\n");
-                    /* WARNING: Subroutine does not return */
-    exit(0);
-  }
-  _local_EAX_154 = fgets(flag,0x30,flagFile);
-  if (_local_EAX_154 == (char *)0x0) {
-    perror("file read error.\n");
-                    /* WARNING: Subroutine does not return */
-    exit(0);
-  }
-  puts("Welcome my secret service. Do you know the password?");
-  puts("Input the password.");
-  _local_EAX_154 = fgets(vulnBuf,0x20,stdin);
-  if (_local_EAX_154 == (char *)0x0) {
-    perror("input error.\n");
-                    /* WARNING: Subroutine does not return */
-    exit(0);
-  }
-  cmp = strcmp(vulnBuf,PASSWORD);
-  if (cmp == 0) {
-    target = success_message;
-  }
-  puts(target);
-  return 0;
-}
-```
-
-So we can see that the file it is trying to open is `flag.txt`. We can also see that this binary will essentially prompt you for a password, and if it is the right password it will print in a logged in message. If not it will print an authentication error. Let's see what the value of `PASSWORD` is, so we can know what we need to set our input equal to to pass the check:
+We can also see that this binary will essentially prompt you for a password, and if it is the right password it will print in a logged in message. If not it will print an authentication error. Let's see what the value of `PASSWORD` is, so we can know what we need to set our input equal to to pass the check. We see this via double clicking on `PASSWORD`:
 
 ```
                              PASSWORD                                        XREF[2]:     Entry Point(*), main:080486d0(R)
@@ -81,6 +22,10 @@ So we can see that the file it is trying to open is `flag.txt`. We can also see 
 ```
 
 So we can see that the string it is checking for is `P@SSW0RD`. Now since our input is being scanned in through an fgets call, a newline character `0x0a` will be appended to the end. So in order to pass the check we will need to put a null byte after `P@SSW0RD`.
+
+![password_val](pics/password_val.png)
+
+So we can see the value of the password is `P@SSW0RD`. So we should be able to pass the check like this:
 
 ```
 $    python -c 'print "P@SSW0RD" + "\x00"' | ./just_do_it-56d11d5466611ad671ad47fba3d8bc5a5140046a2a28162eab9c82f98e352afa

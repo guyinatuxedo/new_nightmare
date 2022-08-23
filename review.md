@@ -25,7 +25,7 @@ default zoom in, 5 ctrl shift +
 
 -    Csaw18/boi (reviewed)
 -    TokyoWesterns17/just_do_it
--    Tamu19_pwn1
+-    Tamu19_pwn1 (reviewed)
 
 #### 5.) Buffer Overflow Call Function
 -    Csaw18_getit     
