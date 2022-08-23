@@ -1,5 +1,7 @@
 # Csaw 2018 Quals Boi
 
+This was done on `Ubuntu 20.04.4 LTS`, although the exact version probably doesn't matter for this challenge.
+
 Let's take a look at the binary:
 
 ![intro_data](pics/intro_data.png)
@@ -9,7 +11,7 @@ So we can see that we are dealing with a 64 bit binary with a Stack Canary and N
 
 ![main](pics/main.png)
 
-So we can see the program prints the string `Are you a big boiiiii??` with `puts`. Then it proceeds to scan in `0x18` bytes worth of data into `input`. In addition to that we can see that the `target` integer is initialized before the `read` call, then compared to a value after the `read` call. Looking at the if then statement, we see if it passes, then it will give us a shell with the `run_cmd("/bin/bash");` function call (so that's what we want to do in order to solve the challenge). Looking at the decompiled code shows us the constants it is assigned and compared to as signed integers, however if we look at the assembly code we can see the constants as unsigned hex integers:
+So we can see the program prints the string `Are you a big boiiiii??` with `puts`. Then it proceeds to scan in `0x18` bytes worth of data into `input`. In addition to that we can see that the `target` integer is initialized before the `read` call, then compared to a value after the `read` call. Looking at the if then statement, we see if it passes, then it will give us a shell with the `run_cmd("/bin/bash");` function callg0x (so that's what we want to do in order to solve the challenge). Looking at the decompiled code shows us the constants it is assigned and compared to as signed integers, however if we look at the assembly code we can see the constants as unsigned hex integers:
 
 
 We can see that the value that it is being assigned is `0xdeadbeef`:
