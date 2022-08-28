@@ -1,0 +1,20 @@
+Intro
+	-	What chall is this
+	-	file/pwn checksec/run
+
+Ghidra reversin
+	-	See where it prints out output
+	-	See where our input is scanned in
+	-	See comparison
+	-	What is `run_cmd`
+	-	See if then fork
+
+Overflow
+	-	See overflow is possible
+	-	In gdb, show the overflow
+	-	In gdb and in ghidra, show how to figure out offset to overflow
+
+Exploit
+	-	Review exploit
+	-	In gdb, show exploit overwriting stack variable, then running shell thingie
+	-	Show exploit running without gdb

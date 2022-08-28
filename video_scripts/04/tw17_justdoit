@@ -1,0 +1,30 @@
+Intro
+	-	What chall is this
+	-	file/pwn checksec/run
+
+Flag File
+	-	Show flag file being opened
+	-	Explain error, show binary running with flag file
+	-	Explain flag file being scanned into bss flag
+	-	Explain what bss is, static address `0x0804a080`
+
+Input
+	-	Explain our input being scanned into `input` `0x20` bytes
+	-	Explain that it is an overflow
+
+Comparison
+	-	Explain what our input is being compared against
+	-	Explain affect if we do, or don't pass the comparison
+	-	Explain printing thing
+	-	Explain that comparison doesn't matter, but the puts thing on stack ptr does
+
+Overflow
+	-	Explain that since we can overwrite a stack ptr that is printed, and we know the address of where the flag is in memory, we can simply overwrite the stack ptrwith address of flag
+	-	Figure out offset
+	-	In gdb, show flag being scanend in
+	-	In gdb, show printedPtr being overwritten
+
+Exploit
+	-	Review exploit
+	-	In gdb, show exploit overwriting `printedPtr` with flag thingie
+	-	Show exploit getting the flag successfully.
