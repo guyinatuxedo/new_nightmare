@@ -2,6 +2,8 @@
 
 default zoom in, 5 ctrl shift +
 
+modules done 02/47
+
 #### 0.) Intro to the Project    
 
 #### 1.) Intro to Assembly     
@@ -44,7 +46,7 @@ default zoom in, 5 ctrl shift +
 -    nx explanation
 
 #### 7.) ROP Chain Statically compiled
--    dcquals19_speedrun1
+-    dcquals19_speedrun1 (reviewed)
 -    bkp16_simplecalc
 -    dcquals16_feedme
 

