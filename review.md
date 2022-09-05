@@ -37,7 +37,7 @@ default zoom in, 5 ctrl shift +
 
 #### 6.) Buffer Overflow Call Shellcode
 -    Tamu19_pwn3  
--    Csaw17_pilot
+-    Csaw17_pilot (reviewed)
 -    Tu18_shelleasy  
 
 #### 6.1) nx intro     

