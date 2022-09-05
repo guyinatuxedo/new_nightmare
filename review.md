@@ -36,7 +36,7 @@ default zoom in, 5 ctrl shift +
 -    quick aslr/pie explanation
 
 #### 6.) Buffer Overflow Call Shellcode
--    Tamu19_pwn3  
+-    Tamu19_pwn3  (reviewed)
 -    Csaw17_pilot (reviewed)
 -    Tu18_shelleasy  
 

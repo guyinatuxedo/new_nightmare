@@ -4,7 +4,7 @@ This was done on `Ubuntu 20.04.4 LTS`.
 
 Let's take a look at the binary:
 
-![pwn_checksec](pics/intro_data.png)
+![intro_data](pics/intro_data.png)
 
 So we are dealing with a 32 bit binary. When we run it, it prints out what looks like a stack address and prompts us for input. When we take a look at the main function in Ghidra, we see this:
 
@@ -119,7 +119,7 @@ Just a bit of math:
 ![python3_math](pics/python3_math.png)
 
 
-We can also see this offset via looking at the stack layout, and seeing that `input` is stored at offset `0x12e` (although I've noticed doing ghidra on occasion will get this wrong):
+We can also see this offset via looking at the stack layout, and seeing that `input` is stored at offset `0x12e` (although I've noticed ghidra on occasion will get this wrong):
 
 ![stack_layout](pics/stack_layout.png)
 

