@@ -1,5 +1,7 @@
 # Tuctf 2018 shella-easy
 
+This was done on `Ubuntu 20.04.4 LTS`.
+
 Let's take a look at the binary:
 
 ![intro_data](pics/intro_data.png)

@@ -35,10 +35,10 @@ default zoom in, 5 ctrl shift +
 #### 5.1) aslr/pie intro     
 -    quick aslr/pie explanation
 
-#### 6.) Buffer Overflow Call Shellcode
+#### 6.) Buffer Overflow Call Shellcode (reviewed)
 -    Tamu19_pwn3  (reviewed)
 -    Csaw17_pilot (reviewed)
--    Tu18_shelleasy  
+-    Tu18_shelleasy (reviewed)
 
 #### 6.1) nx intro     
 -    nx explanation

