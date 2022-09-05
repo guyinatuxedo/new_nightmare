@@ -29,7 +29,7 @@ default zoom in, 5 ctrl shift +
 
 #### 5.) Buffer Overflow Call Function
 -    Csaw18_getit     
--    Tu17_vulnchat
+-    Tu17_vulnchat (reviewed)
 -    Csaw16_warmup
 
 #### 5.1) aslr/pie intro     
