@@ -10,7 +10,7 @@ And now run the bindary:
 
 ![running](pics/running.png)
 
-So we can see that we are dealing with a 64 bit binary. When we run it, we see that it prints out a lot of text, including what looks like a memory address from the stack memory region. It then prompts us for input. Looking through the functions in Ghidra, we don't see a function labeled main. This is because the symbol for `main` is stripped from the binary. There are several ways we can find the main function. One such way is looking at the `entry` function, and the first argument to the `__libc_start_main` function, which we see is the `0x004009a6` function:
+So we can see that we are dealing with a 64 bit binary with NX (non-executable stack) turned off. When we run it, we see that it prints out a lot of text, including what looks like a memory address from the stack memory region. It then prompts us for input. Looking through the functions in Ghidra, we don't see a function labeled main. This is because the symbol for `main` is stripped from the binary. There are several ways we can find the main function. One such way is looking at the `entry` function, and the first argument to the `__libc_start_main` function, which we see is the `0x004009a6` function:
 
 ![libc_start_main](pics/libc_start_main.png)
 
@@ -18,7 +18,7 @@ We can aslo find the function, via looking at the xrefs to the strings we see pr
 
 ![strings_xref](pics/strings_xref.png)
 
-However we can find function `FUN_004009a6` which contains a lot of strings that we saw the program and output, and it looks like what we would expect to see:
+Looking at the `FUN_004009a6` function, we see this:
 
 ```
 undefined8 FUN_004009a6(void)
@@ -87,11 +87,11 @@ undefined8 FUN_004009a6(void)
 }
 ```
 
-Looking through this code, we see that it prints a lot of text. However there are two important sections. The first is where it scans in the data with the `read` call:
+Looking through this code, we see that it prints a lot of text. However there are two important sections. The first is where it scans in the data with the `read` call at `0x00400ae0`:
 
 ![read](pics/read.png)
 
-We can see that it scans in `0x40` bytes worth of input into `input`. The char array `input` can only hold `32` (`0x20`) bytes worth of input, so we have an overflow. Also we can see that the address printed is an infoleak (information about the program that is leak) for the start of our input in memory on the stack:
+We can see that it scans in `0x40` bytes worth of input into `input`. The char array `input` can only hold `32` (`0x20`) bytes worth of input, so we have an overflow. Also we can see that the address printed is an infoleak (information about the program that is leak) for the start of our input in memory on the stack (look at the `local_28`, which our input gets scanned into):
 
 ![infoleak](pics/infoleak.png)
 
@@ -177,7 +177,7 @@ Stack level 0, frame at 0x7fffffffdeb0:
   rbp at 0x7fffffffdea0, rip at 0x7fffffffdea8
 ```
 
-So we can see that the offset between the start of our input and the return address is `0x7fffffffdea8 - 0x7fffffffde80 = 0x28` bytes. So we have a way to overwrite the return address, a place to store our shellcode, and we know where it is in memory. With this we can write our exploit:
+So we can see that the offset between the start of our input and the return address is `0x7fffffffdea8 - 0x7fffffffde80 = 0x28` bytes. So now that we've figured out how to overwrite the saved return address, the question is what code we want to execute. We can tell that the stack is executable, since `NX` is turned off. This means that we can execute data stored in the stack memory region, as code. We also have an infoleak from the stack memory region, of specifically where our input gets stored. These two things mean we can load data into memory at a spot that we know the address of, and can execute as instructions. This data I insert is called shellcode, which is just instructions that we insert somewhere into memory, with the hope of running them to accomplish something. As such, we can load shellcode at the start of our input, then some filler data between the end of our shellcode and the return address, and then overwrite the saved return address with the address of our shellcode. That would lead to us to execute instructions of our choosing, and we will have our shellcode just give us a shell. Putting it all together, we have this exploit:
 
 ```
 from pwn import *
@@ -212,4 +212,4 @@ When we run it:
 
 ![running_exploit](pics/running_exploit.png)
 
-Just like that, we popped a shell!
+Just like that, we popped a shell! A lot of ctf pwn challenges will have us pwn the challenge and spawn a shell, and when we run it against the actual running instance, we will use the shell to read the contents of a flag file.
