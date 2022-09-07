@@ -3,6 +3,7 @@
 default zoom in, 5 ctrl shift +
 
 modules done 02/47
+parts done 00/08
 
 #### 0.) Intro to the Project    
 
@@ -47,7 +48,7 @@ modules done 02/47
 
 #### 7.) ROP Chain Statically compiled
 -    dcquals19_speedrun1 (reviewed)
--    bkp16_simplecalc
+-    bkp16_simplecalc (reviewed)
 -    dcquals16_feedme
 
 #### 7.1) stack canary intro     
