@@ -10,7 +10,7 @@ So we can see that we are dealing with a 64 bit binary. When we run it, it promp
 
 ![main](pics/main.png)
 
-So we can see it generates a random number using the `rand` function. It then prompts us for input using `scanf` with the `%u` format string stored in `fDAT_00400bb` (double click on `DAT_00400bb` in the assembly to see it). Then it checks if the two number are the same, and if they are it will run the `giveFlag` function which when we look at it, we can see that it reads prints out the flag file from `/home/h3/flag.txt`:
+So we can see it generates a random number using the `rand` function. It then prompts us for input using `scanf` with the `%u` format string stored in `DAT_00400bb` (double click on `DAT_00400bb` in the assembly to see it). Then it checks if the two number are the same, and if they are it will run the `giveFlag` function which when we look at it, we can see that it reads prints out the flag file from `/home/h3/flag.txt`:
 
 ![giveFlag](pics/giveFlag.png)
 

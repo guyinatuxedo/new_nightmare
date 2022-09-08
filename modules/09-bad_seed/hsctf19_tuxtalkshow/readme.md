@@ -6,21 +6,6 @@ Let's take a look at the binary:
 
 ![intro_data](pics/intro_data.png)
 
-```
-$	pwn checksec tuxtalkshow 
-[*] '/Hackery/pod/modules/bad_seed/hsctf19_tuxtalkshow/tuxtalkshow'
-    Arch:     amd64-64-little
-    RELRO:    Partial RELRO
-    Stack:    Canary found
-    NX:       NX enabled
-    PIE:      PIE enabled
-$	file tuxtalkshow 
-tuxtalkshow: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/l, BuildID[sha1]=8c0d2b94392e01fecb4b54999cc8afe6fa99653d, for GNU/Linux 3.2.0, not stripped
-$	./tuxtalkshow 
-Welcome to Tux Talk Show 2019!!!
-Enter your lucky number: 15935728
-```
-
 So we can see that we are dealing with a 64 bit binary with PIE enabled. When we run it, it prompts us for a number. When we look at the `main` function we see this:
 
 ```
