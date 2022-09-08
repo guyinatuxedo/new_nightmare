@@ -49,7 +49,7 @@ parts done 00/08
 #### 7.) ROP Chain Statically compiled
 -    dcquals19_speedrun1 (reviewed)
 -    bkp16_simplecalc (reviewed)
--    dcquals16_feedme
+-    dcquals16_feedme (reviewed)
 
 #### 7.1) stack canary intro     
 -    stack canary introduction
@@ -67,9 +67,9 @@ parts done 00/08
 ## General pt 0 Stardust Challenges
 
 #### 9.) Bad Seed     
--    h3_time      
--    hsctf19_tuxtalkshow        
--    sunshinectf17_prepared    
+-    h3_time (reviewed)
+-    hsctf19_tuxtalkshow (reviewed)
+-    sunshinectf17_prepared (reviewed)
 
 
 #### 10.) Format strings     
