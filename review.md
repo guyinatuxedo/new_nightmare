@@ -73,15 +73,16 @@ parts done 00/08
 
 
 #### 10.) Format strings     
--    backdoor17_bbpwn  
--    twesterns16_greeting
--    pico_echo
+-    backdoor17_bbpwn  (reviewed)
+-    twesterns16_greeting (reviewed)
+-    pico_echo (reviewed)
 -    watevr19_betstar
 
 #### 11.) Index Array    
--    dcquals16_xkcd
+-    dcquals16_xkcd (reviewed)
 -    sawmpctf19_dreamheaps
--    sunshinectf2017_alternativesolution
+-    sunshinectf2017_alternativesolution (reviewed)
+-    csaw18_doubletrouble
 
 #### 12.) Z3    
 -    tokyowesterns17_revrevrev        

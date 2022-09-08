@@ -1,5 +1,7 @@
 # Sunshine CTF 2017 Alternate Solution
 
+This was solved on `Ubuntu 20.04.4 LTS`.
+
 Let's take a look at the binary. Also a bit of a spoiler, this isn't exactly index related however at the time this is the best place I thought to put this (and I didn't want to make an entire module for this):
 
 ```

