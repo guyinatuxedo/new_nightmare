@@ -2,76 +2,11 @@
 
 Let's take a look at the binary:
 
-```
-$    pwn checksec prepared
-[*] '/Hackery/pod/modules/bad_seed/sunshinectf17_prepared/prepared'
-    Arch:     amd64-64-little
-    RELRO:    Full RELRO
-    Stack:    Canary found
-    NX:       NX enabled
-    PIE:      PIE enabled
-$    file prepared
-prepared: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/l, for GNU/Linux 3.2.0, BuildID[sha1]=9cd9483ed0e7707d3addd2de44da60d2575652fb, not stripped
-$    ./prepared
-0 days without an incident.
-159
-Well that didn't take long.
-You should have used 13.
-```
+![intro_data](pics/intro_data.png)
 
 So we can see that we are dealing with a 64 bit binary that prompts us for input. Looking at the main function in Ghidra, we see this:
 
-```
-
-undefined8 main(void)
-
-{
-  long lVar1;
-  int randVal;
-  int check;
-  time_t time;
-  FILE *flagFile;
-  char *pcVar2;
-  long in_FS_OFFSET;
-  uint i;
-  char flag [64];
-  char input [512];
-  char target [504];
-  long stackCanary;
- 
-  lVar1 = *(long *)(in_FS_OFFSET + 0x28);
-  time = time((time_t *)0x0);
-  srand((uint)time);
-  i = 0;
-  while ((int)i < 0x32) {
-    randVal = rand();
-    printf("%d days without an incident.\n",(ulong)i);
-    sprintf(target,"%d",(ulong)(uint)(randVal % 100));
-    __isoc99_scanf(" %10s",input);
-    strtok(input,"\n");
-    check = strcmp(target,input);
-    if (check != 0) {
-      puts("Well that didn\'t take long.");
-      printf("You should have used %s.\n",target);
-                    /* WARNING: Subroutine does not return */
-      exit(0);
-    }
-    i = i + 1;
-  }
-  puts("How very unpredictable. Level Cleared");
-  flagFile = fopen("flag.txt","r");
-  while( true ) {
-    pcVar2 = fgets(flag,0x32,flagFile);
-    if (pcVar2 == (char *)0x0) break;
-    printf("%s",flag);
-  }
-  if (lVar1 != *(long *)(in_FS_OFFSET + 0x28)) {
-                    /* WARNING: Subroutine does not return */
-    __stack_chk_fail();
-  }
-  return 0;
-}
-```
+![main](pics/main.png)
 
 So we can see, this is pretty similar to the other challenges in this module. It declares time as a seed with the `srand` function, then uses `rand` to generate values (that are modded by 100) that we have to guess in a loop that will run `50` times. So we have to guess what number `rand` will generate 50 times in a row.
 
@@ -102,7 +37,29 @@ int main(void)
 When we run it:
 
 ```
-$    ./solve | ./prepared
+$   cat solve.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+
+int main(void)  
+{
+  int i, out;
+  time_t var0 = time(NULL);
+  srand(var0);
+
+  for (i = 0; i < 50; i++)
+  {
+    out = rand() % 100;
+    printf("%d\n", out);
+  }
+  
+  return 0;
+}
+
+$   gcc solve.c -o solve
+$   ./solve | ./prepared 
 0 days without an incident.
 1 days without an incident.
 2 days without an incident.
@@ -157,4 +114,4 @@ How very unpredictable. Level Cleared
 isun{pr3d1ct_3very_p[]5s1bl3_scen@r10}
 ```
 
-Just like that, we got the flag. Also fun fact, this was a challenge I made back for Sunshine CTF 2017.
+Just like that, we got the flag.
