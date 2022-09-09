@@ -102,9 +102,9 @@ parts done 00/08
 -    tu_guestbook
 
 #### 15.) Partial Overwrite     
--    Tu17_vulnchat2     
--    Tamu19_pwn2
--    hacklu15_stackstuff
+-    Tu17_vulnchat2 		(reviewed)
+-    Tamu19_pwn2 			(reviewed)
+-    hacklu15_stackstuff 	(reviewed)
 
 #### 16.) SROP     
 -    backdoorctf_funsignals    

