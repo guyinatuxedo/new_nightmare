@@ -149,9 +149,9 @@ target.sendline(payload)
 target.interactive()
 ```
 
-So one thing about this particular challenge. If you run the explouit on more modern versions of Ubuntu, it will probably crash. With pwning, we sometimes run into weird problems caused by the enviornment we run the binary on. This is one of those. Depending on the version of Ubuntu we run this on, this exploit will or will not work. I believe this is because of a stack alignment issue.
+So one thing about this particular challenge. If you run the exploit on more modern versions of Ubuntu, it will probably crash. With pwning, we sometimes run into weird problems caused by the enviornment we run the binary on. This is one of those. Depending on the version of Ubuntu we run this on, this exploit will or will not work. I believe this is because of a stack alignment issue.
 
-I would say the important thing is, as long as call the `easy` function is called, we should consider this challenge was solved. That is the actual intended solution for this challenge:
+I would say the important thing is, as long as call the `easy` function is called, we should consider this challenge was solved. That is the actual intended solution for this challenge, which we can verify with gdb:
 
 ```
 reakpoint 1, 0x00000000004006a3 in main ()
@@ -489,4 +489,3 @@ gef➤
 ```
 
 So there in gdb, we see that `give_shell` was called, which called `system` with `"cat flag.txt"`, which was the intended solution.
-c
