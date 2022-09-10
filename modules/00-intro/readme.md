@@ -39,3 +39,9 @@ First off, I find it fun (if you don't find this fun, I wouldn't recommend doing
 ## Difficulty curve
 
 One more thing I want to say is the difficulty curve, in my opinion, is like that of a roller coaster. There are certain parts that are easier, and certain parts that are harder. Granted, difficulty is relative to the person.
+
+## Potential Problems
+
+So here are just some problems you might run into, and just putting them here.
+
+If you are trying to run a binary, and Ubuntu says "the file does not exist" when the file is clearly there, check if it is a 32 bit binary. If it is, the issue is probably the fact you are trying to run a 32 bit binary on a 64 bit OS. Google "how to run a 32 bit binary on Ubuntu" for the solution.
