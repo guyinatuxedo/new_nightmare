@@ -1,6 +1,6 @@
 # Csaw Quals 2018 Get It
 
-Let's take a look at the binary:
+This was done on `Ubuntu 20.04.4`. Let's take a look at the binary:
 
 ```
 $    file get_it
