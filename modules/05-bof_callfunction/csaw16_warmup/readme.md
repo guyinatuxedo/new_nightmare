@@ -1,6 +1,6 @@
 # Csaw 2016 Quals Warmup
 
-Let's take a look at the binary:
+This was done on `Ubuntu 20.04.4`. Let's take a look at the binary:
 
 ![intro_data](pics/intro_data.png)
 
