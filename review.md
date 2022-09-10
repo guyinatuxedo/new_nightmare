@@ -33,7 +33,7 @@ parts done 00/08
 #### 5.) Buffer Overflow Call Function
 -    Csaw18_getit     
 -    Tu17_vulnchat (reviewed)
--    Csaw16_warmup
+-    Csaw16_warmup (reviewed)
 
 #### 5.1) aslr/pie intro     
 -    quick aslr/pie explanation
@@ -59,9 +59,9 @@ parts done 00/08
 
 #### 8.) ROP Dynamically Compiled
 -    csaw17_svc    
--    fb19_overfloat    
--    hs19_storytime    
--    csaw19_babyboi
+-    fb19_overfloat     T
+-    hs19_storytime     
+-    csaw19_babyboi 	T
 -    utc19_shellme
 
 ## General pt 0 Stardust Challenges
